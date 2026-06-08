@@ -1,6 +1,6 @@
 # Payment Gateway con Saga + Idempotency
 
-> **Livello:** Senior | **Dominio:** Payments / Distributed Systems  
+> **Dominio:** Payments / Distributed Systems  
 > **Stack:** Spring Boot 3.x · Kafka · PostgreSQL · Redis · Resilience4j · React · Docker
 
 ---
@@ -35,18 +35,21 @@ INITIATED → AUTHORIZED → CAPTURED → SETTLED
             FAILED         REFUNDED
 ```
 
-| Stato | Significato |
-|-------|-------------|
-| `INITIATED` | La richiesta è stata ricevuta e validata |
-| `AUTHORIZED` | I fondi sono stati bloccati sulla carta |
-| `CAPTURED` | I fondi sono stati effettivamente addebitati |
-| `SETTLED` | I fondi sono stati trasferiti al merchant |
-| `FAILED` | Un passo ha fallito, fondi mai mossi |
-| `REFUNDED` | Il pagamento è stato stornato post-capture |
+
+| Stato        | Significato                                  |
+| ------------ | -------------------------------------------- |
+| `INITIATED`  | La richiesta è stata ricevuta e validata     |
+| `AUTHORIZED` | I fondi sono stati bloccati sulla carta      |
+| `CAPTURED`   | I fondi sono stati effettivamente addebitati |
+| `SETTLED`    | I fondi sono stati trasferiti al merchant    |
+| `FAILED`     | Un passo ha fallito, fondi mai mossi         |
+| `REFUNDED`   | Il pagamento è stato stornato post-capture   |
+
 
 ### Perché è difficile
 
 In un sistema distribuito, ogni passo del lifecycle è una chiamata a un servizio esterno che può:
+
 - Andare in timeout senza risposta
 - Fallire dopo aver eseguito l'operazione (crash post-commit)
 - Rispondere con un errore temporaneo che si risolve al retry
@@ -60,6 +63,7 @@ Il problema classico: il client fa retry di una chiamata già andata a buon fine
 ### 2.1 Double charge
 
 Il bug più costoso nel finance. Accade quando:
+
 1. Il client invia una richiesta di pagamento
 2. Il server esegue il pagamento con successo
 3. La risposta va persa (crash, timeout di rete)
@@ -71,6 +75,7 @@ Il bug più costoso nel finance. Accade quando:
 ### 2.2 Dual write
 
 Il problema del doppio aggiornamento. Accade quando:
+
 1. Il service aggiorna il DB (pagamento eseguito)
 2. Il service tenta di pubblicare l'evento su Kafka
 3. Il service crasha prima di pubblicare
@@ -136,14 +141,16 @@ Non possiamo usare transazioni distribuite (2PC) su più microservizi — troppo
 
 ### Componenti
 
-| Componente | Responsabilità |
-|-----------|---------------|
-| Payment Service | Ricezione, validazione, idempotency check, stato FSM |
-| Authorization Service | Blocca i fondi tramite processore esterno (mockato) |
-| Capture Service | Addebita i fondi autorizzati |
-| Settlement Service | Trasferisce i fondi al merchant |
-| Outbox Relay | Legge la outbox table e pubblica su Kafka atomicamente |
-| Notification Service | Invia webhook/email al merchant per ogni cambio di stato |
+
+| Componente            | Responsabilità                                           |
+| --------------------- | -------------------------------------------------------- |
+| Payment Service       | Ricezione, validazione, idempotency check, stato FSM     |
+| Authorization Service | Blocca i fondi tramite processore esterno (mockato)      |
+| Capture Service       | Addebita i fondi autorizzati                             |
+| Settlement Service    | Trasferisce i fondi al merchant                          |
+| Outbox Relay          | Legge la outbox table e pubblica su Kafka atomicamente   |
+| Notification Service  | Invia webhook/email al merchant per ogni cambio di stato |
+
 
 ---
 
@@ -233,12 +240,14 @@ CREATE INDEX idx_idempotency_expires ON idempotency_keys (expires_at);
 L'idempotency key è un identificatore univoco fornito dal client per ogni richiesta. Se la stessa key viene inviata due volte, il server restituisce la risposta originale senza rieseguire l'operazione.
 
 **Regole:**
+
 - Generata dal client, non dal server (il server non sa se è un retry)
 - UUID v4 o stringa opaca di almeno 32 caratteri
 - Scadenza dopo 24 ore (finestra di retry ragionevole)
 - Salvata prima di eseguire qualsiasi operazione
 
 **Flusso:**
+
 ```
 1. Ricevi richiesta con header Idempotency-Key: <key>
 2. Cerca la key nel DB
@@ -253,11 +262,13 @@ L'idempotency key è un identificatore univoco fornito dal client per ogni richi
 Il problema del dual write si risolve scrivendo nello stesso DB transaction sia il business update sia il messaggio da pubblicare. Un processo separato (Outbox Relay) legge poi la tabella outbox e pubblica su Kafka.
 
 **Garanzie:**
+
 - Il messaggio viene pubblicato *se e solo se* la transazione DB va a buon fine
 - At-least-once delivery (il relay può pubblicare lo stesso messaggio più volte in caso di crash — i consumer devono essere idempotenti)
 - Ordinamento garantito per `aggregate_id` se si usa una singola partizione Kafka per payment
 
 **Outbox Relay con SELECT FOR UPDATE SKIP LOCKED:**
+
 ```sql
 SELECT * FROM payment_outbox
 WHERE status = 'PENDING'
@@ -265,6 +276,7 @@ ORDER BY created_at
 LIMIT 100
 FOR UPDATE SKIP LOCKED;
 ```
+
 `SKIP LOCKED` permette a più istanze del relay di girare in parallelo senza bloccarsi a vicenda.
 
 ### 5.3 Saga Coreografica
@@ -1121,3 +1133,4 @@ open http://localhost:8090
 ### Domanda: "Come gestisci i fallimenti?"
 
 > *"Ogni passo della saga pubblica un evento di successo o di fallimento. Un fallimento trigger una compensating transaction — per esempio, se il capture fallisce dopo l'autorizzazione, pubblichiamo un evento che dice all'authorization service di fare un void. Non rollback distribuito, ma forward correction: il sistema procede sempre in avanti, annullando i passi precedenti con operazioni esplicite."*
+
