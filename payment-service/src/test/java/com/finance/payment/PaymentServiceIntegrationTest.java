@@ -12,10 +12,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.math.BigDecimal;
@@ -31,13 +31,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PaymentServiceIntegrationTest {
 
     @Container
+    @SuppressWarnings("resource") // closed by the Testcontainers JUnit extension
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
             .withDatabaseName("payments_test")
             .withUsername("test")
             .withPassword("test");
 
     @Container
-    static KafkaContainer kafka = new KafkaContainer(
+    @SuppressWarnings("resource") // closed by the Testcontainers JUnit extension
+    static ConfluentKafkaContainer kafka = new ConfluentKafkaContainer(
             DockerImageName.parse("confluentinc/cp-kafka:7.8.0")
     );
 
