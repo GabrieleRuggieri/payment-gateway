@@ -117,6 +117,14 @@ services:
       SPRING_DATASOURCE_PASSWORD: payments_pass
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+    healthcheck:
+      # Flyway runs on payment-service startup; other services must wait for this to be healthy
+      # before connecting so that the schema is guaranteed to exist.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   authorization-service:
     build:
@@ -127,7 +135,9 @@ services:
     depends_on:
       build-backend:
         condition: service_completed_successfully
-      postgres:
+      # Waits for payment-service to be healthy, which guarantees Flyway has run
+      # and the saga_processed_events table exists before this service starts.
+      payment-service:
         condition: service_healthy
       kafka:
         condition: service_healthy
@@ -136,6 +146,12 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATASOURCE_USERNAME: payments_user
       SPRING_DATASOURCE_PASSWORD: payments_pass
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   capture-service:
     build:
@@ -146,7 +162,7 @@ services:
     depends_on:
       build-backend:
         condition: service_completed_successfully
-      postgres:
+      payment-service:
         condition: service_healthy
       kafka:
         condition: service_healthy
@@ -155,6 +171,12 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATASOURCE_USERNAME: payments_user
       SPRING_DATASOURCE_PASSWORD: payments_pass
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   settlement-service:
     build:
@@ -165,7 +187,7 @@ services:
     depends_on:
       build-backend:
         condition: service_completed_successfully
-      postgres:
+      payment-service:
         condition: service_healthy
       kafka:
         condition: service_healthy
@@ -174,6 +196,12 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATASOURCE_USERNAME: payments_user
       SPRING_DATASOURCE_PASSWORD: payments_pass
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   notification-service:
     build:
@@ -193,6 +221,12 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   payment-ui:
     build:
@@ -205,7 +239,7 @@ services:
       build-frontend:
         condition: service_completed_successfully
       payment-service:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   postgres_data:

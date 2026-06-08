@@ -12,6 +12,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -35,6 +36,7 @@ public class AuthorizationEventConsumer {
             groupId = CONSUMER_GROUP,
             containerFactory = "kafkaListenerContainerFactory"
     )
+    @Transactional
     public void handlePaymentEvent(ConsumerRecord<String, String> record) {
         try {
             PaymentEvent event = objectMapper.readValue(record.value(), PaymentEvent.class);

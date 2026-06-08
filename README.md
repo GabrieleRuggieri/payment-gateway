@@ -1,7 +1,7 @@
 # Payment Gateway con Saga + Idempotency
 
 > **Dominio:** Payments / Distributed Systems  
-> **Stack:** Spring Boot 3.x · Kafka · PostgreSQL · Redis · Resilience4j · React · Docker
+> **Stack:** Spring Boot 4.0.6 · Kafka KRaft 7.8.0 · PostgreSQL 16 · Redis 7 · Resilience4j 2.3.0 · React 19 / Vite · Docker Compose
 
 ---
 
@@ -149,7 +149,7 @@ Non possiamo usare transazioni distribuite (2PC) su più microservizi — troppo
 | Capture Service       | Addebita i fondi autorizzati                             |
 | Settlement Service    | Trasferisce i fondi al merchant                          |
 | Outbox Relay          | Legge la outbox table e pubblica su Kafka atomicamente   |
-| Notification Service  | Invia webhook/email al merchant per ogni cambio di stato |
+| Notification Service  | Invia webhook HTTP al merchant per ogni cambio di stato  |
 
 
 ---
@@ -707,7 +707,7 @@ public class KafkaConfig {
     @Bean
     public NewTopic paymentEventsTopic() {
         return TopicBuilder.name("payment.events")
-            .partitions(6)        // partizioni basate su merchant_id per ordinamento
+            .partitions(6)        // chiave di partizione = paymentId → ordinamento per-payment garantito
             .replicas(1)          // 1 in locale, 3 in produzione
             .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(Duration.ofDays(7).toMillis()))
             .build();
@@ -728,65 +728,50 @@ public class KafkaConfig {
 
 ### 7.2 Authorization Service Consumer
 
+Il consumer effettivo include tre pattern critici assenti nello sketch originale:
+
+1. **Saga dedup atomica** — `SagaEventDedupService.registerIfNew()` è chiamato all'interno della stessa transazione del business logic (`@Transactional` sul listener). Se il processing fallisce, il rollback include anche la riga di dedup, consentendo il corretto retry da parte di Kafka.
+
+2. **Compensazione** — gestisce `CAPTURE_FAILED` chiamando `voidAuthorization` per rilasciare i fondi bloccati.
+
+3. **DLT configurata** — in `KafkaListenerAutoConfiguration` (modulo `common`) è già configurato `DeadLetterPublishingRecoverer` su `payment.events.DLT` con 3 retry a 1s. I consumer rilanciano `IllegalStateException` per attivare questo meccanismo.
+
 ```java
-// AuthorizationEventConsumer.java
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class AuthorizationEventConsumer {
+// AuthorizationEventConsumer.java (implementazione effettiva)
+@KafkaListener(topics = "payment.events", groupId = "authorization-service",
+               containerFactory = "kafkaListenerContainerFactory")
+@Transactional  // dedup INSERT + business logic nello stesso transaction boundary
+public void handlePaymentEvent(ConsumerRecord<String, String> record) {
+    try {
+        PaymentEvent event = objectMapper.readValue(record.value(), PaymentEvent.class);
+        UUID paymentId = resolvePaymentId(event);
 
-    private final AuthorizationService authorizationService;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
-
-    @KafkaListener(
-        topics = "payment.events",
-        groupId = "authorization-service",
-        containerFactory = "paymentEventListenerFactory"
-    )
-    public void handlePaymentEvent(ConsumerRecord<String, String> record) {
-        try {
-            PaymentEvent event = objectMapper.readValue(record.value(), PaymentEvent.class);
-
-            switch (event.getEventType()) {
-                case "PaymentInitiated" -> handleInitiated(event);
-                // Ignora tutti gli altri tipi di evento
-                default -> log.trace("Ignoring event type: {}", event.getEventType());
-            }
-        } catch (Exception e) {
-            log.error("Error processing event from partition={} offset={}: {}",
-                record.partition(), record.offset(), e.getMessage());
-            // Non rilanciare: l'evento va nella dead letter queue
-            // In produzione configurare DeadLetterPublishingRecoverer
+        // Se registerIfNew restituisce false, l'evento è un duplicato → skip
+        if (!dedupService.registerIfNew("authorization-service", paymentId, event.getEventType())) {
+            return;
         }
-    }
 
-    private void handleInitiated(PaymentEvent event) {
-        UUID paymentId = UUID.fromString(event.getPayload().get("paymentId").toString());
-
-        try {
-            // Chiama il processore esterno (mockato in locale)
-            AuthorizationResult result = authorizationService.authorize(
-                paymentId,
-                new BigDecimal(event.getPayload().get("amount").toString()),
-                event.getPayload().get("currency").toString()
-            );
-
-            String resultEvent = result.isSuccess() ? "PaymentAuthorized" : "AuthorizationFailed";
-            Map<String, Object> payload = new HashMap<>(event.getPayload());
-            payload.put("authorizationCode", result.getAuthorizationCode());
-
-            kafkaTemplate.send("payment.events", paymentId.toString(),
-                objectMapper.writeValueAsString(new PaymentEvent(resultEvent, payload)));
-
-        } catch (Exception e) {
-            log.error("Authorization error for payment {}: {}", paymentId, e.getMessage());
-            // Pubblica evento di fallimento per attivare la compensazione
-            publishAuthorizationFailed(paymentId, e.getMessage());
+        PaymentEventType type = PaymentEventType.fromWireName(event.getEventType());
+        switch (type) {
+            case PAYMENT_INITIATED -> handleInitiated(event, paymentId);
+            case CAPTURE_FAILED    -> handleCaptureFailed(event, paymentId);  // compensazione
+            default                -> log.trace("Ignoring {}", event.getEventType());
         }
+    } catch (Exception e) {
+        // Rilancia → DefaultErrorHandler (3 retry) → DLT
+        throw new IllegalStateException(e);
     }
 }
 ```
+
+**Soglie di failure del mock** (per testare i path di errore):
+
+| Importo          | Comportamento                                              |
+|------------------|------------------------------------------------------------|
+| ≤ 9 999          | Autorizzazione OK → AUTHORIZED                             |
+| > 9 999          | `TemporaryProcessorException` → retry Resilience4j → AUTHORIZATION_FAILED |
+| 5 000 – 9 999    | Autorizzazione e capture OK → settlement fallisce → SETTLEMENT_FAILED → REFUNDED |
+| ≤ 4 999          | Saga completa → SETTLED                                    |
 
 ---
 
@@ -916,21 +901,20 @@ class PaymentTest {
 ### 9.2 Integration test con Testcontainers
 
 ```java
-// PaymentServiceIntegrationTest.java
+// PaymentServiceIntegrationTest.java — versioni effettive
 @SpringBootTest
-@Testcontainers
-@Transactional
+@Testcontainers(disabledWithoutDocker = true)
 class PaymentServiceIntegrationTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15")
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
         .withDatabaseName("payments_test")
         .withUsername("test")
         .withPassword("test");
 
     @Container
     static KafkaContainer kafka = new KafkaContainer(
-        DockerImageName.parse("confluentinc/cp-kafka:7.5.0")
+        DockerImageName.parse("confluentinc/cp-kafka:7.8.0")
     );
 
     @DynamicPropertySource
@@ -939,6 +923,7 @@ class PaymentServiceIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        registry.add("payment.outbox.relay.enabled", () -> "false");
     }
 
     @Autowired PaymentService paymentService;
@@ -947,37 +932,42 @@ class PaymentServiceIntegrationTest {
 
     @Test
     void shouldCreatePaymentAndOutboxEventInSameTransaction() {
-        var request = new CreatePaymentRequest(UUID.randomUUID(), new BigDecimal("150.00"), "EUR", null);
-        String idempotencyKey = UUID.randomUUID().toString();
+        var request = new CreatePaymentRequest(UUID.randomUUID(), new BigDecimal("42.50"), "EUR", null, null);
+        String key = "integration-key-" + UUID.randomUUID();
 
-        PaymentResponse response = paymentService.initiatePayment(request, idempotencyKey);
+        // initiatePayment ritorna IdempotentResult<PaymentResponse>
+        IdempotentResult<PaymentResponse> result = paymentService.initiatePayment(request, key);
 
-        // Verifica payment salvato
-        Payment saved = paymentRepository.findById(response.id()).orElseThrow();
-        assertThat(saved.getStatus()).isEqualTo(PaymentStatus.INITIATED);
-        assertThat(saved.getAmount()).isEqualByComparingTo("150.0000");
-
-        // Verifica outbox event creato nella stessa transazione
-        List<PaymentOutbox> outboxEvents = outboxRepository.findByAggregateId(response.id());
-        assertThat(outboxEvents).hasSize(1);
-        assertThat(outboxEvents.get(0).getEventType()).isEqualTo("PaymentInitiated");
-        assertThat(outboxEvents.get(0).getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(result.replayed()).isFalse();
+        assertThat(paymentRepository.findById(result.value().id())).isPresent();
+        assertThat(outboxRepository.findByAggregateId(result.value().id()))
+            .hasSize(1)
+            .first()
+            .satisfies(o -> assertThat(o.getStatus()).isEqualTo(OutboxStatus.PENDING));
     }
 
     @Test
     void shouldReturnSameResponseForDuplicateIdempotencyKey() {
-        var request = new CreatePaymentRequest(UUID.randomUUID(), new BigDecimal("75.00"), "EUR", null);
-        String idempotencyKey = UUID.randomUUID().toString();
+        var request = new CreatePaymentRequest(UUID.randomUUID(), new BigDecimal("75.00"), "EUR", null, null);
+        String key = "dup-key-" + UUID.randomUUID();
 
-        PaymentResponse first = paymentService.initiatePayment(request, idempotencyKey);
-        PaymentResponse second = paymentService.initiatePayment(request, idempotencyKey);
+        IdempotentResult<PaymentResponse> first  = paymentService.initiatePayment(request, key);
+        IdempotentResult<PaymentResponse> second = paymentService.initiatePayment(request, key);
 
-        // Stessa risposta, stesso payment ID — nessun double-charge
-        assertThat(second.id()).isEqualTo(first.id());
+        assertThat(second.replayed()).isTrue();
+        assertThat(second.value().id()).isEqualTo(first.value().id());
         assertThat(paymentRepository.count()).isEqualTo(1L);
     }
 }
 ```
+
+### 9.3 Unit test consumer (authorization / capture / settlement)
+
+Ogni servizio saga ha test unitari che mockano `SagaEventDedupService` e i rispettivi service, verificando:
+- routing corretto per event type
+- skip di eventi duplicati (`registerIfNew` = false)
+- path di fallimento → `IllegalStateException` per DLT routing
+- path di compensazione (es. `CAPTURE_FAILED` → `voidAuthorization`)
 
 ---
 
@@ -1007,11 +997,10 @@ services:
 | IDE / `mvn spring-boot:run` su host | `localhost:9092` |
 
 ```bash
-# Avvia infrastruttura
-docker compose up -d postgres kafka redis kafka-ui
-
-# Avvia tutto
-docker compose up -d --build
+# Avvia tutto — le build delle immagini sono automatiche tramite i servizi
+# build-backend e build-frontend definiti nel Compose stesso.
+# Non è necessario eseguire build manualmente.
+docker compose up -d
 
 # Monitora i log del payment service
 docker compose logs -f payment-service
@@ -1038,6 +1027,36 @@ docker compose exec postgres psql -U payments_user -d payments \
 
 # Visualizza Kafka UI
 open http://localhost:8090
+
+# Apri la demo UI (React/Vite, servita da Nginx)
+open http://localhost:3000
+```
+
+### 10.1 Servizi e porte
+
+| Servizio              | Porta host | Note                                    |
+|-----------------------|------------|-----------------------------------------|
+| `payment-service`     | 8080       | REST API + Actuator + Swagger           |
+| `authorization-service` | 8081    | Saga step — consumer only               |
+| `capture-service`     | 8082       | Saga step — consumer only               |
+| `settlement-service`  | 8083       | Saga step — consumer only               |
+| `notification-service`| 8084       | Consumer — webhook HTTP al merchant     |
+| `payment-ui`          | 3000       | React + Vite, proxied via Nginx         |
+| `kafka-ui`            | 8090       | Kafka topic browser                     |
+| `postgres`            | 5432       | Database condiviso (migrazioni Flyway via `payment-service`) |
+| `kafka`               | 9092       | KRaft single-node, listener host        |
+| `redis`               | 6379       | Dedup per notification-service          |
+
+### 10.2 Healthcheck e startup ordering
+
+`payment-service` esegue le migrazioni Flyway all'avvio. Gli altri servizi (authorization, capture, settlement) aspettano che `payment-service` sia **healthy** (`/actuator/health` → `status: UP`) prima di partire, garantendo che la tabella `saga_processed_events` esista prima che i consumer JDBC si connettano.
+
+`payment-ui` aspetta anch'essa `payment-service: condition: service_healthy`.
+
+### 10.3 Swagger UI
+
+```
+http://localhost:8080/swagger-ui.html
 ```
 
 ---

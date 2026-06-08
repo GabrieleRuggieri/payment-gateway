@@ -32,33 +32,47 @@ export function PaymentForm({
       </div>
 
       <div className="bento-form">
-        <label className="bento-field">
-          <span>Merchant ID</span>
+        <div className="bento-field">
+          <label htmlFor="merchant-id">Merchant ID</label>
           <input
+            id="merchant-id"
             value={merchantId}
             onChange={(e) => onMerchantIdChange(e.target.value)}
             placeholder="UUID"
+            aria-label="Merchant ID"
           />
-        </label>
-        <label className="bento-field">
-          <span>Idempotency Key</span>
+        </div>
+        <div className="bento-field">
+          <label htmlFor="idempotency-key">Idempotency Key</label>
           <input
+            id="idempotency-key"
             className="mono"
             value={idempotencyKey}
             onChange={(e) => onIdempotencyKeyChange(e.target.value)}
+            aria-label="Idempotency Key"
           />
-        </label>
+        </div>
 
         <div className="bento-form__actions">
-          <button type="button" className="btn-outline" disabled={loading} onClick={onRetrySameKey}>
-            Retry same key
+          <button
+            type="button"
+            className="btn-outline"
+            disabled={loading}
+            onClick={onRetrySameKey}
+            aria-busy={loading}
+          >
+            {loading ? 'Processing…' : 'Retry same key'}
           </button>
           <button type="button" className="btn-outline" disabled={loading} onClick={onNewKey}>
             New key
           </button>
         </div>
 
-        {error && <p className="bento-error">{error}</p>}
+        {error && (
+          <p className="bento-error" role="alert" aria-live="assertive">
+            {error}
+          </p>
+        )}
       </div>
 
       <p className="bento__desc bento__desc--footer">

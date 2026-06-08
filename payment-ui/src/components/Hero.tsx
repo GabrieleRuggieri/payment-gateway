@@ -26,10 +26,10 @@ export function Hero({
 }: HeroProps) {
   return (
     <section className="hero" id="composer">
-      <p className="hero__kicker">Creativity runs on payments</p>
-      <h1 className="hero__title">What will you build?</h1>
+      <p className="hero__kicker">Payment gateway demo</p>
+      <h1 className="hero__title">What payment will you process?</h1>
       <p className="hero__subtitle">
-        Turn a payment into a settled saga in seconds — no manual wiring needed.
+        Create a payment, follow the saga to settlement, and retry with the same idempotency key.
       </p>
 
       <div className="composer">
@@ -55,9 +55,10 @@ export function Hero({
           className="composer__submit"
           onClick={onSubmit}
           disabled={loading}
-          aria-label="Create payment"
+          aria-label={loading ? 'Creating payment…' : 'Create payment'}
+          aria-busy={loading}
         >
-          {loading ? <span className="composer__spinner" /> : '→'}
+          {loading ? <span className="composer__spinner" aria-hidden="true" /> : '→'}
         </button>
       </div>
 
