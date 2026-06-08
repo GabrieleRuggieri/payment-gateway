@@ -163,7 +163,8 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - payment-service
+      payment-service:
+        condition: service_started
 
 volumes:
   postgres_data:
