@@ -1116,7 +1116,7 @@ open http://localhost:8090
 
 ---
 
-## 11. Cosa dire al colloquio
+## 11. Domande
 
 ### Domanda: "Come eviti il double charge?"
 
