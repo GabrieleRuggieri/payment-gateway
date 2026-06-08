@@ -1,7 +1,6 @@
 package com.finance.payment.service;
 
 import com.finance.payment.config.PaymentEventMapper;
-import com.finance.payment.domain.OutboxStatus;
 import com.finance.payment.domain.PaymentOutbox;
 import com.finance.payment.repository.PaymentOutboxRepository;
 import lombok.RequiredArgsConstructor;
