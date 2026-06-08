@@ -1,4 +1,28 @@
+# Application images are rebuilt automatically by build-backend / build-frontend before app services start.
+#   docker compose up -d
 services:
+  build-backend:
+    image: docker:27-cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace
+    working_dir: /workspace
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-payment-gateway}
+    entrypoint: ["/bin/sh", "./scripts/build-backend.sh"]
+    restart: "no"
+
+  build-frontend:
+    image: docker:27-cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace
+    working_dir: /workspace
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-payment-gateway}
+    entrypoint: ["/bin/sh", "./scripts/build-frontend.sh"]
+    restart: "no"
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -77,6 +101,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
+      build-backend:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       kafka:
@@ -99,6 +125,8 @@ services:
     ports:
       - "8081:8080"
     depends_on:
+      build-backend:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       kafka:
@@ -116,6 +144,8 @@ services:
     ports:
       - "8082:8080"
     depends_on:
+      build-backend:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       kafka:
@@ -133,6 +163,8 @@ services:
     ports:
       - "8083:8080"
     depends_on:
+      build-backend:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       kafka:
@@ -150,6 +182,8 @@ services:
     ports:
       - "8084:8080"
     depends_on:
+      build-backend:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       redis:
@@ -168,6 +202,8 @@ services:
     ports:
       - "3000:80"
     depends_on:
+      build-frontend:
+        condition: service_completed_successfully
       payment-service:
         condition: service_started
 

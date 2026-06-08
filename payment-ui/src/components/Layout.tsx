@@ -23,7 +23,6 @@ export function Layout({ children }: LayoutProps) {
           <a href="http://localhost:8090" target="_blank" rel="noreferrer">
             Kafka UI
           </a>
-          <span className="nav__badge">Saga</span>
         </nav>
 
         <div className="nav__actions">

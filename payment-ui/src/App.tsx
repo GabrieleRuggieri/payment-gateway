@@ -1,17 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPayment, getPayment, newIdempotencyKey, pollUntilTerminal } from './api';
 import { Hero } from './components/Hero';
 import { Layout } from './components/Layout';
 import { PaymentForm } from './components/PaymentForm';
 import { PaymentResult } from './components/PaymentResult';
 import { SagaTimeline } from './components/SagaTimeline';
+import { TestCollection } from './components/TestCollection';
 import { PaymentResponse, TERMINAL_STATUSES } from './types';
 import './index.css';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
-
-function newIdempotencyKey() {
-  return crypto.randomUUID();
-}
 
 export default function App() {
   const [merchantId, setMerchantId] = useState<string>('550e8400-e29b-41d4-a716-446655440000');
@@ -27,14 +23,8 @@ export default function App() {
   const pollPaymentStatus = useCallback(async (paymentId: string) => {
     setPolling(true);
     try {
-      for (let attempt = 0; attempt < 30; attempt++) {
-        const res = await fetch(`${API_BASE}/api/v1/payments/${paymentId}`);
-        if (!res.ok) throw new Error(`Poll failed: HTTP ${res.status}`);
-        const body = (await res.json()) as PaymentResponse;
-        setResponse(body);
-        if (TERMINAL_STATUSES.includes(body.status)) return;
-        await new Promise((r) => setTimeout(r, 1500));
-      }
+      const final = await pollUntilTerminal(paymentId);
+      if (final) setResponse(final);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Polling failed');
     } finally {
@@ -56,31 +46,36 @@ export default function App() {
     if (!reuseKey) setIdempotencyKey(key);
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/payments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': key,
-        },
-        body: JSON.stringify({
-          merchantId,
-          amount,
-          currency,
-          description: 'Demo payment from payment-ui',
-        }),
+      const result = await createPayment({
+        merchantId,
+        amount,
+        currency,
+        idempotencyKey: key,
       });
 
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message ?? `HTTP ${res.status}`);
+      if (!result.ok) {
+        const body = result.body as { message?: string } | null;
+        throw new Error(body?.message ?? `HTTP ${result.status}`);
+      }
 
-      setResponse(body as PaymentResponse);
-      setReplayed(res.headers.get('Idempotent-Replayed') === 'true');
+      setResponse(result.body as PaymentResponse);
+      setReplayed(result.headers.get('Idempotent-Replayed') === 'true');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Request failed');
     } finally {
       setLoading(false);
     }
   }
+
+  const loadPaymentById = useCallback(async (paymentId: string) => {
+    const result = await getPayment(paymentId);
+    if (result.ok && result.body) {
+      setResponse(result.body as PaymentResponse);
+      if (!TERMINAL_STATUSES.includes((result.body as PaymentResponse).status)) {
+        void pollPaymentStatus(paymentId);
+      }
+    }
+  }, [pollPaymentStatus]);
 
   return (
     <Layout>
@@ -91,10 +86,6 @@ export default function App() {
         onAmountChange={setAmount}
         onCurrencyChange={setCurrency}
         onSubmit={() => void submitPayment(false)}
-        onExample={(a, c) => {
-          setAmount(a);
-          setCurrency(c);
-        }}
       />
 
       <div className="bento-grid">
@@ -113,6 +104,8 @@ export default function App() {
 
         <PaymentResult payment={response} replayed={replayed} />
       </div>
+
+      <TestCollection merchantId={merchantId} onPaymentResult={loadPaymentById} />
     </Layout>
   );
 }

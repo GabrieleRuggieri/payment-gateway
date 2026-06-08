@@ -10,10 +10,15 @@ function stepIndex(status: PaymentStatus): number {
   return SAGA_STEPS.findIndex((s) => s.status === status);
 }
 
+function isSuccessTerminal(status: PaymentStatus): boolean {
+  return status === 'SETTLED';
+}
+
 /** Gray bento tile — single-row saga pipeline with even spacing. */
 export function SagaTimeline({ status, polling }: SagaTimelineProps) {
   const current = status ? stepIndex(status) : -1;
   const isTerminalFail = status === 'FAILED' || status === 'REFUNDED';
+  const isComplete = status != null && isSuccessTerminal(status);
 
   return (
     <section className="bento bento--gray">
@@ -32,7 +37,7 @@ export function SagaTimeline({ status, polling }: SagaTimelineProps) {
         <div className="pipeline__row">
           {SAGA_STEPS.map((step, idx) => {
             const done = status != null && idx <= current && !isTerminalFail;
-            const active = status != null && idx === current && !isTerminalFail;
+            const active = status != null && idx === current && !isTerminalFail && !isComplete;
 
             return (
               <div key={step.status} className="pipeline__step">
