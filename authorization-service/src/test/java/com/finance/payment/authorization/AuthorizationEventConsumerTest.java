@@ -38,8 +38,7 @@ class AuthorizationEventConsumerTest {
     @Mock
     private SagaEventDedupService dedupService;
     @Mock
-    @SuppressWarnings("rawtypes")
-    private KafkaTemplate kafkaTemplate;
+    private KafkaTemplate<String, String> kafkaTemplate;
 
     private AuthorizationEventConsumer consumer;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -47,12 +46,7 @@ class AuthorizationEventConsumerTest {
     @BeforeEach
     void setUp() {
         consumer = new AuthorizationEventConsumer(authorizationService, dedupService,
-                castTemplate(), objectMapper);
-    }
-
-    @SuppressWarnings("unchecked")
-    private KafkaTemplate<String, String> castTemplate() {
-        return kafkaTemplate;
+                kafkaTemplate, objectMapper);
     }
 
     // ── PAYMENT_INITIATED: successful authorization ───────────────────────────
