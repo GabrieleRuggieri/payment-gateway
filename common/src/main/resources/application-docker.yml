@@ -1,0 +1,4 @@
+# Profile: docker — imported automatically when SPRING_PROFILES_ACTIVE=docker
+spring:
+  kafka:
+    bootstrap-servers: kafka:29092

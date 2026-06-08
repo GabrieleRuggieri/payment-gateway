@@ -1,0 +1,29 @@
+spring:
+  config:
+    import: classpath:application-kafka.yml
+  application:
+    name: notification-service
+  threads:
+    virtual:
+      enabled: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: notification-service
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+notification:
+  webhook:
+    default-url: http://localhost:8099/webhooks/payments
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

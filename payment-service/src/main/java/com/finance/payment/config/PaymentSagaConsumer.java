@@ -1,0 +1,55 @@
+package com.finance.payment.config;
+
+import tools.jackson.databind.ObjectMapper;
+import com.finance.payment.common.event.PaymentEvent;
+import com.finance.payment.common.event.PaymentEventType;
+import com.finance.payment.common.saga.SagaEventDedupService;
+import com.finance.payment.service.PaymentService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+
+import java.util.UUID;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentSagaConsumer {
+
+    private static final String CONSUMER_GROUP = "payment-service-saga";
+
+    private final PaymentService paymentService;
+    private final SagaEventDedupService dedupService;
+    private final ObjectMapper objectMapper;
+
+    @KafkaListener(
+            topics = "${payment.kafka.topics.events:payment.events}",
+            groupId = CONSUMER_GROUP,
+            containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void onPaymentEvent(ConsumerRecord<String, String> record) {
+        PaymentEvent event = objectMapper.readValue(record.value(), PaymentEvent.class);
+        UUID paymentId = event.getPaymentId() != null
+                ? event.getPaymentId()
+                : UUID.fromString(String.valueOf(event.getPayload().get("paymentId")));
+
+        if (!dedupService.registerIfNew(CONSUMER_GROUP, paymentId, event.getEventType())) {
+            log.debug("Skipping duplicate saga event {} for payment {}", event.getEventType(), paymentId);
+            return;
+        }
+
+        PaymentEventType type = PaymentEventType.fromWireName(event.getEventType());
+        switch (type) {
+            case PAYMENT_AUTHORIZED -> paymentService.handleAuthorized(paymentId);
+            case AUTHORIZATION_FAILED -> paymentService.handleAuthorizationFailed(
+                    paymentId,
+                    String.valueOf(event.getPayload().getOrDefault("reason", "unknown"))
+            );
+            case PAYMENT_CAPTURED -> paymentService.handleCaptured(paymentId);
+            case PAYMENT_SETTLED -> paymentService.handleSettled(paymentId);
+            default -> log.trace("Ignoring event type: {}", event.getEventType());
+        }
+    }
+}

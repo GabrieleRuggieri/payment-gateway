@@ -1,0 +1,99 @@
+spring:
+  config:
+    import: classpath:application-kafka.yml
+  application:
+    name: payment-service
+  threads:
+    virtual:
+      enabled: true
+
+  jackson:
+    use-jackson2-defaults: true
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/payments
+    username: payments_user
+    password: payments_pass
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: payment-service
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+payment:
+  outbox:
+    relay:
+      enabled: true
+      batch-size: 100
+      fixed-delay-ms: 1000
+  idempotency:
+    ttl-hours: 24
+  kafka:
+    topics:
+      events: payment.events
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      payment-processor:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
+  retry:
+    instances:
+      payment-processor:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        enable-randomized-wait: true
+        randomized-wait-factor: 0.3
+
+logging:
+  level:
+    com.finance.payment: INFO
+    org.springframework.kafka: WARN
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html

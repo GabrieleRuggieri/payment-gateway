@@ -983,109 +983,35 @@ class PaymentServiceIntegrationTest {
 
 ## 10. Docker Compose locale
 
+Stack aggiornato: **Kafka KRaft** (senza Zookeeper), PostgreSQL 16, Redis 7.
+
 ```yaml
-# docker-compose.yml
-version: '3.9'
-
+# docker-compose.yml (estratto — KRaft single-node)
 services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: payments
-      POSTGRES_USER: payments_user
-      POSTGRES_PASSWORD: payments_pass
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U payments_user -d payments"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-    ports:
-      - "2181:2181"
-
   kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    depends_on:
-      - zookeeper
-    ports:
-      - "9092:9092"
+    image: confluentinc/cp-kafka:7.8.0
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    depends_on:
-      - kafka
-    ports:
-      - "8090:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-
-  payment-service:
-    build: ./payment-service
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payments
-      SPRING_DATASOURCE_USERNAME: payments_user
-      SPRING_DATASOURCE_PASSWORD: payments_pass
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-
-  authorization-service:
-    build: ./authorization-service
-    ports:
-      - "8081:8080"
-    depends_on:
-      - kafka
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-
-  capture-service:
-    build: ./capture-service
-    ports:
-      - "8082:8080"
-    depends_on:
-      - kafka
-      - postgres
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payments
-
-volumes:
-  postgres_data:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      # Dual listener: 29092 rete Docker, 9092 host locale
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"  # topic creati da payment-service
 ```
 
-### Comandi per avviare e testare
+| Connessione | Bootstrap servers |
+|-------------|-------------------|
+| Servizi in Docker (`SPRING_PROFILES_ACTIVE=docker`) | `kafka:29092` |
+| IDE / `mvn spring-boot:run` su host | `localhost:9092` |
 
 ```bash
+# Avvia infrastruttura
+docker compose up -d postgres kafka redis kafka-ui
+
 # Avvia tutto
-docker compose up -d
+docker compose up -d --build
 
 # Monitora i log del payment service
 docker compose logs -f payment-service

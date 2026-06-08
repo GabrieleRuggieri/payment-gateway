@@ -1,0 +1,2 @@
+com.finance.payment.common.kafka.KafkaListenerAutoConfiguration
+com.finance.payment.common.saga.SagaEventDedupAutoConfiguration
