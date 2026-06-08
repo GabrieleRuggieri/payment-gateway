@@ -31,9 +31,6 @@ export function Layout({ children }: LayoutProps) {
             <a className="nav__link" href="http://localhost:8080/actuator/health" target="_blank" rel="noreferrer">
               Health
             </a>
-            <a className="nav__cta" href="#composer">
-              Start
-            </a>
           </div>
         </div>
       </header>
