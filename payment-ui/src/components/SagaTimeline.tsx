@@ -1,7 +1,7 @@
 import { PaymentStatus, SAGA_STEPS } from '../types';
 
 interface SagaTimelineProps {
-  status: PaymentStatus;
+  status: PaymentStatus | null;
   polling: boolean;
 }
 
@@ -10,64 +10,54 @@ function stepIndex(status: PaymentStatus): number {
   return SAGA_STEPS.findIndex((s) => s.status === status);
 }
 
-/** Visual pipeline for the payment saga — highlights current and completed steps. */
+/** Gray bento tile — single-row saga pipeline with even spacing. */
 export function SagaTimeline({ status, polling }: SagaTimelineProps) {
-  const current = stepIndex(status);
+  const current = status ? stepIndex(status) : -1;
   const isTerminalFail = status === 'FAILED' || status === 'REFUNDED';
 
   return (
-    <div className="timeline" aria-label="Saga lifecycle">
-      <div className="timeline__header">
-        <span className="timeline__label">Pipeline</span>
-        {polling && (
-          <span className="badge badge--pulse">
-            <span className="badge__dot" aria-hidden />
-            Live
-          </span>
-        )}
+    <section className="bento bento--gray">
+      <div className="pipeline__heading">
+        <div>
+          <span className="bento__eyebrow">Parallel Agents</span>
+          <h2 className="bento__title">Move faster</h2>
+          <p className="bento__desc">
+            Authorization, capture and settlement run as independent saga steps over Kafka.
+          </p>
+        </div>
+        {polling && <span className="pipeline__live">Live</span>}
       </div>
 
-      <ol className="timeline__steps">
-        {SAGA_STEPS.map((step, idx) => {
-          const done = idx <= current && !isTerminalFail;
-          const active = idx === current + 1 && !isTerminalFail && polling;
-          const currentStep = idx === current && !isTerminalFail;
+      <div className="pipeline" aria-label="Saga pipeline">
+        <div className="pipeline__row">
+          {SAGA_STEPS.map((step, idx) => {
+            const done = status != null && idx <= current && !isTerminalFail;
+            const active = status != null && idx === current && !isTerminalFail;
 
-          return (
-            <li
-              key={step.status}
-              className={[
-                'timeline__step',
-                done ? 'timeline__step--done' : '',
-                currentStep ? 'timeline__step--current' : '',
-                active ? 'timeline__step--active' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              <span className="timeline__marker" aria-hidden>
-                {done ? '✓' : idx + 1}
-              </span>
-              <div className="timeline__content">
-                <span className="timeline__name">{step.label}</span>
-                <span className="timeline__desc">{step.desc}</span>
+            return (
+              <div key={step.status} className="pipeline__step">
+                {idx > 0 && <span className="pipeline__arrow" aria-hidden />}
+                <div
+                  className={[
+                    'pipeline__node',
+                    done ? 'pipeline__node--done' : '',
+                    active ? 'pipeline__node--active' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  <span className="pipeline__node-label">{step.label}</span>
+                  <span className="pipeline__node-desc">{step.desc}</span>
+                </div>
               </div>
-            </li>
-          );
-        })}
+            );
+          })}
+        </div>
 
-        {isTerminalFail && (
-          <li className={`timeline__step timeline__step--terminal timeline__step--${status.toLowerCase()}`}>
-            <span className="timeline__marker" aria-hidden>
-              !
-            </span>
-            <div className="timeline__content">
-              <span className="timeline__name">{status}</span>
-              <span className="timeline__desc">Saga reached terminal state</span>
-            </div>
-          </li>
+        {isTerminalFail && status && (
+          <div className="pipeline__terminal">{status}</div>
         )}
-      </ol>
-    </div>
+      </div>
+    </section>
   );
 }

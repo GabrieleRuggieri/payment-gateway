@@ -3,10 +3,10 @@ import { Hero } from './components/Hero';
 import { Layout } from './components/Layout';
 import { PaymentForm } from './components/PaymentForm';
 import { PaymentResult } from './components/PaymentResult';
+import { SagaTimeline } from './components/SagaTimeline';
 import { PaymentResponse, TERMINAL_STATUSES } from './types';
 import './index.css';
 
-/** Base URL — empty string uses nginx proxy in Docker or Vite proxy locally. */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 function newIdempotencyKey() {
@@ -84,38 +84,34 @@ export default function App() {
 
   return (
     <Layout>
-      <Hero />
+      <Hero
+        amount={amount}
+        currency={currency}
+        loading={loading}
+        onAmountChange={setAmount}
+        onCurrencyChange={setCurrency}
+        onSubmit={() => void submitPayment(false)}
+        onExample={(a, c) => {
+          setAmount(a);
+          setCurrency(c);
+        }}
+      />
 
-      <div className="grid">
+      <div className="bento-grid">
         <PaymentForm
           merchantId={merchantId}
-          amount={amount}
-          currency={currency}
           idempotencyKey={idempotencyKey}
           loading={loading}
           error={error}
           onMerchantIdChange={setMerchantId}
-          onAmountChange={setAmount}
-          onCurrencyChange={setCurrency}
           onIdempotencyKeyChange={setIdempotencyKey}
-          onSubmit={() => void submitPayment(false)}
           onRetrySameKey={() => void submitPayment(true)}
           onNewKey={() => setIdempotencyKey(newIdempotencyKey())}
         />
 
-        {response ? (
-          <PaymentResult payment={response} replayed={replayed} polling={polling} />
-        ) : (
-          <section className="panel panel--empty">
-            <div className="empty-state">
-              <span className="empty-state__icon" aria-hidden>
-                ◇
-              </span>
-              <h3>No payment yet</h3>
-              <p>Submit the form to start the saga. Status updates appear here in real time.</p>
-            </div>
-          </section>
-        )}
+        <SagaTimeline status={response?.status ?? null} polling={polling} />
+
+        <PaymentResult payment={response} replayed={replayed} />
       </div>
     </Layout>
   );

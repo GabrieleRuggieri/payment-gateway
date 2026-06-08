@@ -1,4 +1,6 @@
 spring:
+  kafka:
+    bootstrap-servers: kafka:29092
   datasource:
     url: jdbc:postgresql://postgres:5432/payments
   data:

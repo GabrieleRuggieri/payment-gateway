@@ -1,132 +1,63 @@
-import { FormEvent } from 'react';
-
 interface PaymentFormProps {
   merchantId: string;
-  amount: string;
-  currency: string;
   idempotencyKey: string;
   loading: boolean;
   error: string | null;
   onMerchantIdChange: (v: string) => void;
-  onAmountChange: (v: string) => void;
-  onCurrencyChange: (v: string) => void;
   onIdempotencyKeyChange: (v: string) => void;
-  onSubmit: () => void;
   onRetrySameKey: () => void;
   onNewKey: () => void;
 }
 
-/** Payment creation form — posts to POST /api/v1/payments with Idempotency-Key header. */
+/** Peach bento tile — merchant & idempotency configuration. */
 export function PaymentForm({
   merchantId,
-  amount,
-  currency,
   idempotencyKey,
   loading,
   error,
   onMerchantIdChange,
-  onAmountChange,
-  onCurrencyChange,
   onIdempotencyKeyChange,
-  onSubmit,
   onRetrySameKey,
   onNewKey,
 }: PaymentFormProps) {
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    onSubmit();
-  }
-
   return (
-    <section className="panel">
-      <div className="panel__head">
-        <h2>New payment</h2>
-        <p>Send a POST with a unique idempotency key per logical attempt.</p>
-      </div>
+    <section className="bento bento--peach">
+      <span className="bento__eyebrow">Configuration</span>
+      <h2 className="bento__title">Configure freely</h2>
+      <p className="bento__desc">
+        Set merchant and idempotency key before submitting. Each key guarantees exactly-once
+        initiation.
+      </p>
 
-      <form className="form" onSubmit={handleSubmit}>
-        <div className="field">
-          <label htmlFor="merchantId">Merchant ID</label>
+      <div className="bento-form">
+        <label className="bento-field">
+          <span>Merchant ID</span>
           <input
-            id="merchantId"
-            className="input"
             value={merchantId}
             onChange={(e) => onMerchantIdChange(e.target.value)}
-            placeholder="550e8400-e29b-41d4-a716-446655440000"
-            required
+            placeholder="UUID"
           />
-        </div>
-
-        <div className="form__row">
-          <div className="field">
-            <label htmlFor="amount">Amount</label>
-            <input
-              id="amount"
-              className="input"
-              value={amount}
-              onChange={(e) => onAmountChange(e.target.value)}
-              placeholder="99.99"
-              required
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="currency">Currency</label>
-            <input
-              id="currency"
-              className="input input--mono"
-              value={currency}
-              onChange={(e) => onCurrencyChange(e.target.value.toUpperCase())}
-              maxLength={3}
-              placeholder="EUR"
-              required
-            />
-          </div>
-        </div>
-
-        <div className="field">
-          <label htmlFor="idempotencyKey">
-            Idempotency Key
-            <span className="field__hint">UUID recommended</span>
-          </label>
+        </label>
+        <label className="bento-field">
+          <span>Idempotency Key</span>
           <input
-            id="idempotencyKey"
-            className="input input--mono"
+            className="mono"
             value={idempotencyKey}
             onChange={(e) => onIdempotencyKeyChange(e.target.value)}
-            required
           />
-        </div>
+        </label>
 
-        <div className="form__actions">
-          <button type="submit" className="btn btn--primary" disabled={loading}>
-            {loading ? (
-              <>
-                <span className="spinner" aria-hidden />
-                Processing…
-              </>
-            ) : (
-              'Create payment'
-            )}
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost"
-            disabled={loading}
-            onClick={onRetrySameKey}
-          >
+        <div className="bento-form__actions">
+          <button type="button" className="btn-outline" disabled={loading} onClick={onRetrySameKey}>
             Retry same key
           </button>
-          <button type="button" className="btn btn--ghost" disabled={loading} onClick={onNewKey}>
+          <button type="button" className="btn-outline" disabled={loading} onClick={onNewKey}>
             New key
           </button>
         </div>
 
-        {error && (
-          <div className="alert alert--error" role="alert">
-            {error}
-          </div>
-        )}
-      </form>
+        {error && <p className="bento-error">{error}</p>}
+      </div>
     </section>
   );
 }

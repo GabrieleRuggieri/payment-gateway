@@ -1,60 +1,62 @@
 import { PaymentResponse } from '../types';
-import { SagaTimeline } from './SagaTimeline';
 
 interface PaymentResultProps {
-  payment: PaymentResponse;
+  payment: PaymentResponse | null;
   replayed: boolean;
-  polling: boolean;
 }
 
-function statusClass(status: string) {
-  return `chip chip--${status.toLowerCase()}`;
-}
-
-/** Displays payment outcome, saga timeline and raw JSON response. */
-export function PaymentResult({ payment, replayed, polling }: PaymentResultProps) {
+/** Dark + orange bento tiles — status summary and raw JSON response. */
+export function PaymentResult({ payment, replayed }: PaymentResultProps) {
   return (
-    <section className="panel panel--result">
-      <div className="panel__head">
-        <div className="panel__head-row">
-          <h2>Payment result</h2>
-          <div className="badges">
-            <span className={statusClass(payment.status)}>{payment.status}</span>
-            {replayed && <span className="badge badge--warn">Idempotent replay</span>}
-          </div>
-        </div>
-        <p className="mono truncate" title={payment.id}>
-          {payment.id}
+    <>
+      <section className="bento bento--dark">
+        <span className="bento__eyebrow bento__eyebrow--light">Response</span>
+        <h2 className="bento__title bento__title--light">Ship anything</h2>
+        <p className="bento__desc bento__desc--light">
+          Raw API payload from the payment-service aggregate.
         </p>
-      </div>
 
-      <SagaTimeline status={payment.status} polling={polling} />
+        <div className="code-panel">
+          {payment ? (
+            <pre>{JSON.stringify(payment, null, 2)}</pre>
+          ) : (
+            <p className="code-panel__empty">Submit a payment to see the JSON response here.</p>
+          )}
+        </div>
+      </section>
 
-      <div className="metrics">
-        <div className="metric">
-          <span className="metric__label">Amount</span>
-          <span className="metric__value">
-            {payment.amount} {payment.currency}
-          </span>
-        </div>
-        <div className="metric">
-          <span className="metric__label">Merchant</span>
-          <span className="metric__value mono truncate" title={payment.merchantId}>
-            {payment.merchantId.slice(0, 8)}…
-          </span>
-        </div>
-        <div className="metric">
-          <span className="metric__label">Updated</span>
-          <span className="metric__value">
-            {new Date(payment.updatedAt).toLocaleTimeString()}
-          </span>
-        </div>
-      </div>
+      <section className="bento bento--orange">
+        <span className="bento__eyebrow bento__eyebrow--light">Status</span>
+        <h2 className="bento__title bento__title--light">Build together</h2>
 
-      <details className="code-block">
-        <summary>Raw response</summary>
-        <pre>{JSON.stringify(payment, null, 2)}</pre>
-      </details>
-    </section>
+        {payment ? (
+          <div className="status-card">
+            <div className="status-card__row">
+              <span className="status-card__label">State</span>
+              <span className={`status-chip status-chip--${payment.status.toLowerCase()}`}>
+                {payment.status}
+              </span>
+            </div>
+            {replayed && <span className="status-card__replay">Idempotent replay</span>}
+            <div className="status-card__row">
+              <span className="status-card__label">Amount</span>
+              <span className="status-card__value">
+                {payment.amount} {payment.currency}
+              </span>
+            </div>
+            <div className="status-card__row">
+              <span className="status-card__label">Payment ID</span>
+              <span className="status-card__value mono" title={payment.id}>
+                {payment.id.slice(0, 18)}…
+              </span>
+            </div>
+          </div>
+        ) : (
+          <p className="bento__desc bento__desc--light">
+            Payment status and saga outcome appear here after submission.
+          </p>
+        )}
+      </section>
+    </>
   );
 }
