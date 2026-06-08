@@ -13,15 +13,7 @@ public interface PaymentOutboxRepository extends JpaRepository<PaymentOutbox, Lo
     List<PaymentOutbox> findByAggregateId(UUID aggregateId);
 
     /**
-     * TODO: Implement native query with SELECT ... FOR UPDATE SKIP LOCKED.
-     * JPQL LIMIT/FOR UPDATE support varies — prefer native SQL for production relay.
-     *
-     * Example:
-     * SELECT * FROM payment_outbox
-     * WHERE status = 'PENDING'
-     * ORDER BY created_at
-     * LIMIT :limit
-     * FOR UPDATE SKIP LOCKED
+     * Fetches pending outbox rows with row-level lock, skipping rows locked by other relay instances.
      */
     @Query(value = """
             SELECT * FROM payment_outbox

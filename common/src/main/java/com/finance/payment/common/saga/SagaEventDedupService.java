@@ -2,7 +2,6 @@ package com.finance.payment.common.saga;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -11,7 +10,6 @@ import java.util.UUID;
  * PostgreSQL-backed saga dedup: INSERT ON CONFLICT DO NOTHING.
  * Chosen over Redis for durability and auditability in payment flows.
  */
-@Service
 @RequiredArgsConstructor
 public class SagaEventDedupService {
 

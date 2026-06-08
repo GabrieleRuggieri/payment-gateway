@@ -13,6 +13,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
+/**
+ * Updates the payment aggregate when downstream saga steps complete.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -31,9 +34,7 @@ public class PaymentSagaConsumer {
     )
     public void onPaymentEvent(ConsumerRecord<String, String> record) {
         PaymentEvent event = objectMapper.readValue(record.value(), PaymentEvent.class);
-        UUID paymentId = event.getPaymentId() != null
-                ? event.getPaymentId()
-                : UUID.fromString(String.valueOf(event.getPayload().get("paymentId")));
+        UUID paymentId = resolvePaymentId(event);
 
         if (!dedupService.registerIfNew(CONSUMER_GROUP, paymentId, event.getEventType())) {
             log.debug("Skipping duplicate saga event {} for payment {}", event.getEventType(), paymentId);
@@ -41,15 +42,23 @@ public class PaymentSagaConsumer {
         }
 
         PaymentEventType type = PaymentEventType.fromWireName(event.getEventType());
+        String reason = String.valueOf(event.getPayload().getOrDefault("reason", "unknown"));
+
         switch (type) {
             case PAYMENT_AUTHORIZED -> paymentService.handleAuthorized(paymentId);
-            case AUTHORIZATION_FAILED -> paymentService.handleAuthorizationFailed(
-                    paymentId,
-                    String.valueOf(event.getPayload().getOrDefault("reason", "unknown"))
-            );
+            case AUTHORIZATION_FAILED -> paymentService.handleAuthorizationFailed(paymentId, reason);
             case PAYMENT_CAPTURED -> paymentService.handleCaptured(paymentId);
+            case CAPTURE_FAILED -> paymentService.handleCaptureFailed(paymentId, reason);
             case PAYMENT_SETTLED -> paymentService.handleSettled(paymentId);
+            case SETTLEMENT_FAILED -> paymentService.handleSettlementFailed(paymentId, reason);
+            case PAYMENT_REFUNDED -> paymentService.handleRefunded(paymentId);
             default -> log.trace("Ignoring event type: {}", event.getEventType());
         }
+    }
+
+    private UUID resolvePaymentId(PaymentEvent event) {
+        return event.getPaymentId() != null
+                ? event.getPaymentId()
+                : UUID.fromString(String.valueOf(event.getPayload().get("paymentId")));
     }
 }

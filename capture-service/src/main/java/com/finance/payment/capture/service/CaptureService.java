@@ -8,16 +8,23 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+/**
+ * Capture saga step: confirm the authorized amount with the processor (mocked).
+ */
 @Service
 @Slf4j
 public class CaptureService {
 
     /**
-     * TODO: Integrate with payment processor capture API (Resilience4j wrapped).
+     * Captures funds previously authorized. Demo mock always succeeds unless amount is zero.
      */
     public CaptureResult capture(UUID paymentId, BigDecimal amount, String currency, String authorizationCode) {
-        log.info("Capturing payment {} for {} {}", paymentId, amount, currency);
-        // TODO: replace stub
+        log.info("Capturing payment {} for {} {} (auth={})", paymentId, amount, currency, authorizationCode);
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return CaptureResult.failure("Invalid capture amount");
+        }
+
         return CaptureResult.success("CAP-" + paymentId.toString().substring(0, 8).toUpperCase());
     }
 

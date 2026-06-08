@@ -18,6 +18,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Listens for {@link PaymentEventType#PAYMENT_CAPTURED} to settle and handles settlement failure compensation.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -82,10 +85,15 @@ public class SettlementEventConsumer {
         publish(outcome, paymentId, payload);
     }
 
-    private void handleSettlementFailed(PaymentEvent event, UUID paymentId) {
+    private void handleSettlementFailed(PaymentEvent event, UUID paymentId) throws Exception {
         BigDecimal amount = new BigDecimal(event.getPayload().get("amount").toString());
         String currency = event.getPayload().get("currency").toString();
-        settlementService.refund(paymentId, amount, currency);
+
+        var refund = settlementService.refund(paymentId, amount, currency);
+        Map<String, Object> payload = new HashMap<>(event.getPayload());
+        payload.put("refundReference", refund.getRefundReference());
+
+        publish(PaymentEventType.PAYMENT_REFUNDED, paymentId, payload);
     }
 
     private void publish(PaymentEventType type, UUID paymentId, Map<String, Object> payload) throws Exception {

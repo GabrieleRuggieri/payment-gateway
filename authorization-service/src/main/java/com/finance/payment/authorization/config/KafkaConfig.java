@@ -1,6 +1,5 @@
 package com.finance.payment.authorization.config;
 
-import com.finance.payment.common.kafka.TopicConstants;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
 import org.springframework.context.annotation.Bean;
@@ -12,6 +11,10 @@ import org.springframework.kafka.core.ProducerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Kafka producer for publishing authorization outcomes.
+ * Consumer factory + DLT are provided by {@link com.finance.payment.common.kafka.KafkaListenerAutoConfiguration}.
+ */
 @Configuration
 public class KafkaConfig {
 
@@ -26,6 +29,4 @@ public class KafkaConfig {
     KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
     }
-
-    // TODO: Consumer factory + error handler + DLT topic
 }

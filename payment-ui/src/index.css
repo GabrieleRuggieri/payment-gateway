@@ -107,6 +107,66 @@ button:disabled {
 .status-captured { background: #fef3c7; color: #b45309; }
 .status-settled { background: #dcfce7; color: #15803d; }
 .status-failed { background: #fee2e2; color: #b91c1c; }
+.status-refunded { background: #f3e8ff; color: #7e22ce; }
+
+.saga-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.saga-step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.saga-step.done {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.saga-step.active {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.saga-step.terminal.failed {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.saga-step.terminal.refunded {
+  color: #7e22ce;
+  font-weight: 700;
+}
+
+.saga-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+}
+
+.saga-step.done .saga-dot,
+.saga-step.active .saga-dot,
+.saga-step.terminal .saga-dot {
+  opacity: 1;
+}
+
+.polling-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
 
 .error {
   color: #b91c1c;

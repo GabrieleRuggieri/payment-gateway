@@ -7,7 +7,7 @@ CREATE TABLE payments (
     idempotency_key VARCHAR(255) NOT NULL,
     merchant_id     UUID NOT NULL,
     amount          NUMERIC(19, 4) NOT NULL,
-    currency        CHAR(3) NOT NULL,
+    currency        VARCHAR(3) NOT NULL,
     status          VARCHAR(50) NOT NULL,
     description     TEXT,
     metadata        JSONB,

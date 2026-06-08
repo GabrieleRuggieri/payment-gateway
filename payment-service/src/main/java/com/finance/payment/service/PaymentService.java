@@ -1,6 +1,7 @@
 package com.finance.payment.service;
 
 import com.finance.payment.api.dto.CreatePaymentRequest;
+import com.finance.payment.api.dto.IdempotentResult;
 import com.finance.payment.api.dto.PaymentResponse;
 import com.finance.payment.common.event.PaymentEventType;
 import com.finance.payment.common.exception.PaymentNotFoundException;
@@ -17,9 +18,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Orchestrates the payment aggregate: initiation, saga state transitions, audit trail and outbox writes.
+ * <p>
+ * Every state change that must be published writes to {@code payment_outbox} in the same transaction (outbox pattern).
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -33,53 +40,41 @@ public class PaymentService {
     private final IdempotencyService idempotencyService;
 
     /**
-     * TODO: Wire idempotency + outbox in single transaction (see README §6.3).
-     * - Payment.initiate(...)
-     * - save payment
-     * - save PaymentOutbox PaymentInitiated event
-     * - append PaymentAuditEvent
+     * Creates a payment idempotently and enqueues a {@link PaymentEventType#PAYMENT_INITIATED} outbox event.
      */
     @Transactional
-    public PaymentResponse initiatePayment(CreatePaymentRequest request, String idempotencyKey) {
-        return idempotencyService.executeIdempotent(
-                idempotencyKey,
-                () -> {
-                    Payment payment = Payment.initiate(
-                            idempotencyKey,
-                            request.merchantId(),
-                            request.amount(),
-                            request.currency(),
-                            request.description(),
-                            request.metadata()
-                    );
-                    paymentRepository.save(payment);
+    public IdempotentResult<PaymentResponse> initiatePayment(CreatePaymentRequest request, String idempotencyKey) {
+        return idempotencyService.executeIdempotent(idempotencyKey, () -> {
+            Payment payment = Payment.initiate(
+                    idempotencyKey,
+                    request.merchantId(),
+                    request.amount(),
+                    request.currency(),
+                    request.description(),
+                    request.metadata()
+            );
+            paymentRepository.save(payment);
 
-                    saveOutboxEvent(payment.getId(), PaymentEventType.PAYMENT_INITIATED, buildInitiatedPayload(payment));
-                    appendAudit(payment, PaymentEventType.PAYMENT_INITIATED.wireName(), null, PaymentStatus.INITIATED, null);
+            Map<String, Object> payload = buildPayload(payment);
+            saveOutboxEvent(payment.getId(), PaymentEventType.PAYMENT_INITIATED, payload);
+            appendAudit(payment, PaymentEventType.PAYMENT_INITIATED.wireName(), null, PaymentStatus.INITIATED, null);
 
-                    log.info("Payment initiated: id={}, idempotencyKey={}", payment.getId(), idempotencyKey);
-                    return PaymentResponse.from(payment);
-                },
-                PaymentResponse.class
-        );
+            log.info("Payment initiated: id={}, idempotencyKey={}", payment.getId(), idempotencyKey);
+            return PaymentResponse.from(payment);
+        });
     }
 
-    /**
-     * TODO: Called by Kafka consumer when Authorization service publishes PaymentAuthorized.
-     */
     @Transactional
     public void handleAuthorized(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
         PaymentStatus old = payment.getStatus();
         payment.authorize();
 
-        saveOutboxEvent(paymentId, PaymentEventType.PAYMENT_AUTHORIZED, Map.of("paymentId", paymentId.toString()));
+        saveOutboxEvent(paymentId, PaymentEventType.PAYMENT_AUTHORIZED, buildPayload(payment));
         appendAudit(payment, PaymentEventType.PAYMENT_AUTHORIZED.wireName(), old, PaymentStatus.AUTHORIZED, null);
+        log.info("Payment authorized: id={}", paymentId);
     }
 
-    /**
-     * TODO: Called when authorization fails — no compensation needed.
-     */
     @Transactional
     public void handleAuthorizationFailed(UUID paymentId, String reason) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -90,17 +85,57 @@ public class PaymentService {
         log.warn("Authorization failed for payment {}: {}", paymentId, reason);
     }
 
-    /**
-     * TODO: Implement handleCaptured, handleCaptureFailed, handleSettled, handleSettlementFailed.
-     */
     @Transactional
     public void handleCaptured(UUID paymentId) {
-        throw new UnsupportedOperationException("TODO: implement capture transition + outbox");
+        Payment payment = findPaymentOrThrow(paymentId);
+        PaymentStatus old = payment.getStatus();
+        payment.capture();
+
+        saveOutboxEvent(paymentId, PaymentEventType.PAYMENT_CAPTURED, buildPayload(payment));
+        appendAudit(payment, PaymentEventType.PAYMENT_CAPTURED.wireName(), old, PaymentStatus.CAPTURED, null);
+        log.info("Payment captured: id={}", paymentId);
+    }
+
+    @Transactional
+    public void handleCaptureFailed(UUID paymentId, String reason) {
+        Payment payment = findPaymentOrThrow(paymentId);
+        PaymentStatus old = payment.getStatus();
+        payment.fail(PaymentStatus.AUTHORIZED);
+
+        appendAudit(payment, PaymentEventType.CAPTURE_FAILED.wireName(), old, PaymentStatus.FAILED, Map.of("reason", reason));
+        log.warn("Capture failed for payment {}: {}", paymentId, reason);
     }
 
     @Transactional
     public void handleSettled(UUID paymentId) {
-        throw new UnsupportedOperationException("TODO: implement settle transition + outbox");
+        Payment payment = findPaymentOrThrow(paymentId);
+        PaymentStatus old = payment.getStatus();
+        payment.settle();
+
+        saveOutboxEvent(paymentId, PaymentEventType.PAYMENT_SETTLED, buildPayload(payment));
+        appendAudit(payment, PaymentEventType.PAYMENT_SETTLED.wireName(), old, PaymentStatus.SETTLED, null);
+        log.info("Payment settled: id={}", paymentId);
+    }
+
+    @Transactional
+    public void handleSettlementFailed(UUID paymentId, String reason) {
+        Payment payment = findPaymentOrThrow(paymentId);
+        PaymentStatus old = payment.getStatus();
+        payment.fail(PaymentStatus.CAPTURED);
+
+        appendAudit(payment, PaymentEventType.SETTLEMENT_FAILED.wireName(), old, PaymentStatus.FAILED, Map.of("reason", reason));
+        log.warn("Settlement failed for payment {}: {}", paymentId, reason);
+    }
+
+    @Transactional
+    public void handleRefunded(UUID paymentId) {
+        Payment payment = findPaymentOrThrow(paymentId);
+        PaymentStatus old = payment.getStatus();
+        payment.refund();
+
+        saveOutboxEvent(paymentId, PaymentEventType.PAYMENT_REFUNDED, buildPayload(payment));
+        appendAudit(payment, PaymentEventType.PAYMENT_REFUNDED.wireName(), old, PaymentStatus.REFUNDED, null);
+        log.info("Payment refunded: id={}", paymentId);
     }
 
     public PaymentResponse getPayment(UUID paymentId) {
@@ -138,12 +173,16 @@ public class PaymentService {
         ));
     }
 
-    private Map<String, Object> buildInitiatedPayload(Payment payment) {
-        return Map.of(
-                "paymentId", payment.getId().toString(),
-                "amount", payment.getAmount(),
-                "currency", payment.getCurrency(),
-                "merchantId", payment.getMerchantId().toString()
-        );
+    private Map<String, Object> buildPayload(Payment payment) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("paymentId", payment.getId().toString());
+        payload.put("merchantId", payment.getMerchantId().toString());
+        payload.put("amount", payment.getAmount());
+        payload.put("currency", payment.getCurrency());
+        payload.put("status", payment.getStatus().name());
+        if (payment.getDescription() != null) {
+            payload.put("description", payment.getDescription());
+        }
+        return payload;
     }
 }

@@ -5,13 +5,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+/**
+ * Redis wiring for optional non-critical features (rate limiting, hot caches).
+ * <p>
+ * Idempotency and saga dedup intentionally use PostgreSQL — losing a Redis key could double-charge.
+ */
 @Configuration
 public class RedisConfig {
 
-    /**
-     * TODO: Use Redis for hot idempotency cache or rate limiting before hitting PostgreSQL.
-     * Example: SET idempotency:{key} EX 86400 NX
-     */
     @Bean
     StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
         return new StringRedisTemplate(connectionFactory);

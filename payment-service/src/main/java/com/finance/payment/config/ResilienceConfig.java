@@ -9,12 +9,12 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 
+/**
+ * Resilience4j policies for outbound processor calls (used when payment-service adds external integrations).
+ */
 @Configuration
 public class ResilienceConfig {
 
-    /**
-     * TODO: Register CircuitBreakerRegistry / RetryRegistry beans if not using spring-boot starter auto-config.
-     */
     @Bean
     CircuitBreakerConfig processorCircuitBreakerConfig() {
         return CircuitBreakerConfig.custom()

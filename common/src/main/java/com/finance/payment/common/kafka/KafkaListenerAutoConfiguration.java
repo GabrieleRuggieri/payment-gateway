@@ -1,5 +1,6 @@
 package com.finance.payment.common.kafka;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -25,6 +26,7 @@ import java.util.Map;
  */
 @AutoConfiguration
 @ConditionalOnClass(KafkaTemplate.class)
+@Slf4j
 public class KafkaListenerAutoConfiguration {
 
     @Bean
@@ -51,9 +53,13 @@ public class KafkaListenerAutoConfiguration {
                 (record, ex) -> new TopicPartition(TopicConstants.PAYMENT_EVENTS_DLT, record.partition()));
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3L));
-        errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
-            // TODO: emit metric/log for retry attempts
-        });
+        errorHandler.setRetryListeners((record, ex, deliveryAttempt) ->
+                log.warn("Kafka retry attempt {} for topic={} partition={} offset={}: {}",
+                        deliveryAttempt,
+                        record.topic(),
+                        record.partition(),
+                        record.offset(),
+                        ex.getMessage()));
 
         factory.setCommonErrorHandler(errorHandler);
         return factory;

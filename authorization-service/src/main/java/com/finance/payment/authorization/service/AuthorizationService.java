@@ -9,6 +9,12 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+/**
+ * Authorization saga step: reserve funds with the external processor and compensate on capture failure.
+ * <p>
+ * Idempotency is enforced at the Kafka consumer via {@link com.finance.payment.common.saga.SagaEventDedupService}
+ * (PostgreSQL) — not Redis, to keep financial dedup durable.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -17,16 +23,17 @@ public class AuthorizationService {
     private final ExternalProcessorClient processorClient;
 
     /**
-     * TODO: Add idempotent processing guard (dedupe by paymentId + eventType in Redis/DB).
+     * Calls the processor to authorize (hold) the payment amount.
      */
     public AuthorizationResult authorize(UUID paymentId, BigDecimal amount, String currency) {
         return processorClient.authorize(paymentId, amount, currency);
     }
 
     /**
-     * TODO: Compensation — void/release authorization when CaptureFailed is published.
+     * Saga compensation: void/release a prior authorization when capture fails downstream.
      */
     public void voidAuthorization(UUID paymentId, String authorizationCode) {
-        throw new UnsupportedOperationException("TODO: call processor void API");
+        log.info("Voiding authorization for payment {} code {}", paymentId, authorizationCode);
+        processorClient.voidAuthorization(paymentId, authorizationCode);
     }
 }

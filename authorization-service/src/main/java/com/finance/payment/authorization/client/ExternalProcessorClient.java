@@ -16,6 +16,11 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+/**
+ * Resilience4j-wrapped client for an external payment processor (mocked for the demo).
+ * <p>
+ * Mock rules: amounts &gt; 9999 trigger {@link TemporaryProcessorException} to exercise retries.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -25,15 +30,28 @@ public class ExternalProcessorClient {
     private final RetryRegistry retryRegistry;
 
     /**
-     * TODO: Replace mock with RestTemplate/WebClient call to external processor.
-     * Mock rule from README: fail with TemporaryProcessorException when amount > 9999.
+     * Authorize (hold) funds. Replace {@link #callProcessor} with a real HTTP integration.
      */
     public AuthorizationResult authorize(UUID paymentId, BigDecimal amount, String currency) {
+        return executeWithResilience(() -> callProcessor(paymentId, amount, currency));
+    }
+
+    /**
+     * Void a prior authorization — compensation path when capture fails.
+     */
+    public void voidAuthorization(UUID paymentId, String authorizationCode) {
+        executeWithResilience(() -> {
+            log.info("Processor void OK payment={} authCode={}", paymentId, authorizationCode);
+            return AuthorizationResult.success("VOID-" + paymentId.toString().substring(0, 8));
+        });
+    }
+
+    private AuthorizationResult executeWithResilience(Supplier<AuthorizationResult> supplier) {
         CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("payment-processor");
         Retry retry = retryRegistry.retry("payment-processor");
 
         Supplier<AuthorizationResult> decorated = Decorators
-                .ofSupplier(() -> callProcessor(paymentId, amount, currency))
+                .ofSupplier(supplier)
                 .withCircuitBreaker(cb)
                 .withRetry(retry)
                 .decorate();

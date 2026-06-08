@@ -10,6 +10,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+/**
+ * Forwards saga status events to merchant webhooks (filtered inside {@link WebhookNotificationService}).
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -18,9 +21,6 @@ public class NotificationEventConsumer {
     private final WebhookNotificationService notificationService;
     private final ObjectMapper objectMapper;
 
-    /**
-     * TODO: Filter relevant status events and skip PaymentInitiated if merchant doesn't need it.
-     */
     @KafkaListener(
             topics = TopicConstants.PAYMENT_EVENTS,
             groupId = "notification-service",
@@ -31,7 +31,9 @@ public class NotificationEventConsumer {
             PaymentEvent event = objectMapper.readValue(record.value(), PaymentEvent.class);
             notificationService.notifyMerchant(event);
         } catch (Exception e) {
-            log.error("Notification consumer error: {}", e.getMessage());
+            log.error("Notification consumer error partition={} offset={}: {}",
+                    record.partition(), record.offset(), e.getMessage());
+            throw new IllegalStateException(e);
         }
     }
 }

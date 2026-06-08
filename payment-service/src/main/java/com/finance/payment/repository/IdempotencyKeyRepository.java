@@ -9,12 +9,14 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
+/**
+ * Idempotency key persistence in PostgreSQL (durable, ACID).
+ * <p>
+ * {@link #findByKeyWithLock} serializes concurrent requests; unique PK on {@code key}
+ * plus {@link com.finance.payment.service.IdempotencyService} handles insert races.
+ */
 public interface IdempotencyKeyRepository extends JpaRepository<IdempotencyRecord, String> {
 
-    /**
-     * TODO: Consider INSERT ... ON CONFLICT DO NOTHING for race-free first-write wins.
-     * Pessimistic lock helps but does not cover concurrent inserts on missing keys.
-     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM IdempotencyRecord r WHERE r.key = :key")
     Optional<IdempotencyRecord> findByKeyWithLock(@Param("key") String key);
