@@ -36,20 +36,14 @@ class SettlementEventConsumerTest {
     @Mock
     private SagaEventDedupService dedupService;
     @Mock
-    @SuppressWarnings("rawtypes")
-    private KafkaTemplate kafkaTemplate;
+    private KafkaTemplate<String, String> kafkaTemplate;
 
     private SettlementEventConsumer consumer;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
-        consumer = new SettlementEventConsumer(settlementService, dedupService, castTemplate(), objectMapper);
-    }
-
-    @SuppressWarnings("unchecked")
-    private KafkaTemplate<String, String> castTemplate() {
-        return kafkaTemplate;
+        consumer = new SettlementEventConsumer(settlementService, dedupService, kafkaTemplate, objectMapper);
     }
 
     // ── Happy path ────────────────────────────────────────────────────────────
