@@ -92,7 +92,7 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
   const failedCount = Object.values(runStates).filter((s) => s.status === 'failed').length;
 
   return (
-    <section className="test-collection">
+    <section className="test-collection" id="collection">
       <div className="test-collection__header">
         <div>
           <span className="test-collection__eyebrow">Collection</span>

@@ -6,6 +6,7 @@ import { PaymentForm } from './components/PaymentForm';
 import { PaymentResult } from './components/PaymentResult';
 import { SagaTimeline } from './components/SagaTimeline';
 import { TestCollection } from './components/TestCollection';
+import { PlatformStrip } from './components/PlatformStrip';
 import { PaymentResponse, TERMINAL_STATUSES } from './types';
 import './index.css';
 
@@ -86,6 +87,10 @@ export default function App() {
         onAmountChange={setAmount}
         onCurrencyChange={setCurrency}
         onSubmit={() => void submitPayment(false)}
+        onExample={(a, c) => {
+          setAmount(a);
+          setCurrency(c);
+        }}
       />
 
       <div className="bento-grid">
@@ -105,6 +110,7 @@ export default function App() {
         <PaymentResult payment={response} replayed={replayed} />
       </div>
 
+      <PlatformStrip />
       <TestCollection merchantId={merchantId} onPaymentResult={loadPaymentById} />
     </Layout>
   );

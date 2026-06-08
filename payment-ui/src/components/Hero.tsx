@@ -5,9 +5,16 @@ interface HeroProps {
   onAmountChange: (v: string) => void;
   onCurrencyChange: (v: string) => void;
   onSubmit: () => void;
+  onExample: (amount: string, currency: string) => void;
 }
 
-/** Centered hero with large rounded composer — primary entry point for a payment. */
+const EXAMPLES = [
+  { label: 'Standard €49.99', amount: '49.99', currency: 'EUR' },
+  { label: 'Small €9.99 test', amount: '9.99', currency: 'EUR' },
+  { label: 'USD $150.00', amount: '150.00', currency: 'USD' },
+];
+
+/** Centered hero — large headline, rounded composer, example pills. */
 export function Hero({
   amount,
   currency,
@@ -15,12 +22,14 @@ export function Hero({
   onAmountChange,
   onCurrencyChange,
   onSubmit,
+  onExample,
 }: HeroProps) {
   return (
-    <section className="hero">
-      <h1 className="hero__title">What payment will you process?</h1>
+    <section className="hero" id="composer">
+      <p className="hero__kicker">Creativity runs on payments</p>
+      <h1 className="hero__title">What will you build?</h1>
       <p className="hero__subtitle">
-        Create a payment, watch the distributed saga complete, and verify idempotent retries.
+        Turn a payment into a settled saga in seconds — no manual wiring needed.
       </p>
 
       <div className="composer">
@@ -50,6 +59,22 @@ export function Hero({
         >
           {loading ? <span className="composer__spinner" /> : '→'}
         </button>
+      </div>
+
+      <div className="examples">
+        <span className="examples__label">Try an example amount</span>
+        <div className="examples__pills">
+          {EXAMPLES.map((ex) => (
+            <button
+              key={ex.label}
+              type="button"
+              className="example-pill"
+              onClick={() => onExample(ex.amount, ex.currency)}
+            >
+              {ex.label}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );

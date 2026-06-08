@@ -1,20 +1,23 @@
 import { PaymentResponse } from '../types';
+import { ShipArt } from './illustrations/ShipArt';
+import { TogetherArt } from './illustrations/TogetherArt';
 
 interface PaymentResultProps {
   payment: PaymentResponse | null;
   replayed: boolean;
 }
 
-/** Dark + orange bento tiles — status summary and raw JSON response. */
+/** Dark + orange bento tiles — wireframe art, status and JSON response. */
 export function PaymentResult({ payment, replayed }: PaymentResultProps) {
   return (
     <>
       <section className="bento bento--dark">
         <span className="bento__eyebrow bento__eyebrow--light">Response</span>
         <h2 className="bento__title bento__title--light">Ship anything</h2>
-        <p className="bento__desc bento__desc--light">
-          Raw API payload from the payment-service aggregate.
-        </p>
+
+        <div className="bento-art bento-art--light">
+          <ShipArt />
+        </div>
 
         <div className="code-panel">
           {payment ? (
@@ -23,11 +26,19 @@ export function PaymentResult({ payment, replayed }: PaymentResultProps) {
             <p className="code-panel__empty">Submit a payment to see the JSON response here.</p>
           )}
         </div>
+
+        <p className="bento__desc bento__desc--light bento__desc--footer">
+          Raw API payload from the payment-service aggregate.
+        </p>
       </section>
 
       <section className="bento bento--orange">
         <span className="bento__eyebrow bento__eyebrow--light">Status</span>
         <h2 className="bento__title bento__title--light">Build together</h2>
+
+        <div className="bento-art bento-art--light">
+          <TogetherArt />
+        </div>
 
         {payment ? (
           <div className="status-card">
@@ -52,7 +63,7 @@ export function PaymentResult({ payment, replayed }: PaymentResultProps) {
             </div>
           </div>
         ) : (
-          <p className="bento__desc bento__desc--light">
+          <p className="bento__desc bento__desc--light bento__desc--footer">
             Payment status and saga outcome appear here after submission.
           </p>
         )}

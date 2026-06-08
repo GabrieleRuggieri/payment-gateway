@@ -1,3 +1,5 @@
+import { ConfigureArt } from './illustrations/ConfigureArt';
+
 interface PaymentFormProps {
   merchantId: string;
   idempotencyKey: string;
@@ -9,7 +11,7 @@ interface PaymentFormProps {
   onNewKey: () => void;
 }
 
-/** Peach bento tile — merchant & idempotency configuration. */
+/** Peach bento tile — wireframe art + merchant & idempotency configuration. */
 export function PaymentForm({
   merchantId,
   idempotencyKey,
@@ -22,12 +24,12 @@ export function PaymentForm({
 }: PaymentFormProps) {
   return (
     <section className="bento bento--peach">
-      <span className="bento__eyebrow">Configuration</span>
+      <span className="bento__eyebrow">Design Freely</span>
       <h2 className="bento__title">Configure freely</h2>
-      <p className="bento__desc">
-        Set merchant and idempotency key before submitting. Each key guarantees exactly-once
-        initiation.
-      </p>
+
+      <div className="bento-art bento-art--dark">
+        <ConfigureArt />
+      </div>
 
       <div className="bento-form">
         <label className="bento-field">
@@ -58,6 +60,10 @@ export function PaymentForm({
 
         {error && <p className="bento-error">{error}</p>}
       </div>
+
+      <p className="bento__desc bento__desc--footer">
+        Set merchant and idempotency key before submitting. Each key guarantees exactly-once initiation.
+      </p>
     </section>
   );
 }
