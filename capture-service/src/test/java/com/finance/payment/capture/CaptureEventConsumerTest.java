@@ -36,20 +36,14 @@ class CaptureEventConsumerTest {
     @Mock
     private SagaEventDedupService dedupService;
     @Mock
-    @SuppressWarnings("rawtypes")
-    private KafkaTemplate kafkaTemplate;
+    private KafkaTemplate<String, String> kafkaTemplate;
 
     private CaptureEventConsumer consumer;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
-        consumer = new CaptureEventConsumer(captureService, dedupService, castTemplate(), objectMapper);
-    }
-
-    @SuppressWarnings("unchecked")
-    private KafkaTemplate<String, String> castTemplate() {
-        return kafkaTemplate;
+        consumer = new CaptureEventConsumer(captureService, dedupService, kafkaTemplate, objectMapper);
     }
 
     @Test
