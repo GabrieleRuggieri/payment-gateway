@@ -20,6 +20,8 @@ export interface TestContext {
 export interface ApiTestCase {
   id: string;
   name: string;
+  method: 'GET' | 'POST';
+  path: string;
   description: string;
   expected: string;
   run: (ctx: TestContext) => Promise<{ pass: boolean; httpStatus: number; message: string; detail?: string }>;
@@ -30,7 +32,7 @@ export interface TestSection {
   eyebrow: string;
   title: string;
   description: string;
-  variant: 'peach' | 'gray' | 'dark';
+  variant: 'peach' | 'gray';
   tests: ApiTestCase[];
 }
 
@@ -68,7 +70,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'success-standard',
         name: 'Standard EUR payment',
-        description: 'POST €49.99 — typical demo amount.',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body: €49.99 EUR — typical demo amount.',
         expected: 'HTTP 200 → saga completes → SETTLED',
         run: async (ctx) => {
           const key = crypto.randomUUID();
@@ -98,7 +102,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'success-small',
         name: 'Small amount',
-        description: 'POST €9.99 — minimum realistic charge.',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body: €9.99 EUR — minimum realistic charge.',
         expected: 'HTTP 200 → SETTLED',
         run: async (ctx) => {
           const created = await createPayment({
@@ -123,7 +129,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'success-usd',
         name: 'USD payment',
-        description: 'POST $150.00 in USD currency.',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body: $150.00 USD.',
         expected: 'HTTP 200 → SETTLED',
         run: async (ctx) => {
           const created = await createPayment({
@@ -143,7 +151,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'success-limit',
         name: 'Processor limit (edge)',
-        description: 'POST €9999.00 — highest amount the mock processor accepts.',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body: €9999.00 EUR — highest amount the mock processor accepts.',
         expected: 'HTTP 200 → SETTLED',
         run: async (ctx) => {
           const created = await createPayment({
@@ -172,7 +182,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'fail-auth-limit',
         name: 'Authorization limit exceeded',
-        description: 'POST €10000.00 — mock processor rejects amounts above 9999.',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body: €10000.00 EUR — mock processor rejects amounts above 9999.',
         expected: 'HTTP 200 → saga fails → FAILED',
         run: async (ctx) => {
           const created = await createPayment({
@@ -207,6 +219,8 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'idempotency-create',
         name: 'Create baseline payment',
+        method: 'POST',
+        path: '/api/v1/payments',
         description: 'Stores payment id and key for replay tests below.',
         expected: 'HTTP 200, Idempotent-Replayed absent',
         run: async (ctx) => {
@@ -237,6 +251,8 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'idempotency-replay',
         name: 'Replay same Idempotency-Key',
+        method: 'POST',
+        path: '/api/v1/payments',
         description: 'Same key and payload — must return the original payment.',
         expected: 'HTTP 200, Idempotent-Replayed: true, same payment id',
         run: async (ctx) => {
@@ -267,6 +283,8 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'idempotency-new-key',
         name: 'New key, same payload',
+        method: 'POST',
+        path: '/api/v1/payments',
         description: 'Different Idempotency-Key creates a second payment.',
         expected: 'HTTP 200, new payment id',
         run: async (ctx) => {
@@ -299,7 +317,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'validation-missing-key',
         name: 'Missing Idempotency-Key',
-        description: 'POST without the required header.',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Request without the required Idempotency-Key header.',
         expected: 'HTTP 400 Bad Request',
         run: async (ctx) => {
           const result = await createPayment({
@@ -320,7 +340,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'validation-short-key',
         name: 'Idempotency-Key too short',
-        description: 'Key "abc" violates the 8–255 character rule.',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Header Idempotency-Key: abc (violates 8–255 char rule).',
         expected: 'HTTP 400 Bad Request',
         run: async (ctx) => {
           const result = await createPayment({
@@ -341,7 +363,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'validation-zero-amount',
         name: 'Zero amount',
-        description: 'Amount must be positive (@DecimalMin 0.0001).',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body amount: 0 — must be positive (@DecimalMin 0.0001).',
         expected: 'HTTP 400 Validation Failed',
         run: async (ctx) => {
           const result = await createPayment({
@@ -362,7 +386,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'validation-bad-merchant',
         name: 'Invalid merchant UUID',
-        description: 'Malformed merchantId in request body.',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body merchantId: not-a-valid-uuid.',
         expected: 'HTTP 400 Bad Request',
         run: async (_ctx) => {
           const result = await createPayment({
@@ -387,12 +413,14 @@ export const TEST_SECTIONS: TestSection[] = [
     eyebrow: 'Queries',
     title: 'Read operations',
     description: 'GET payment status — polling endpoint used by the UI.',
-    variant: 'dark',
+    variant: 'gray',
     tests: [
       {
         id: 'query-existing',
         name: 'Get existing payment',
-        description: 'GET /payments/{id} for the last created payment.',
+        method: 'GET',
+        path: '/api/v1/payments/{id}',
+        description: 'Uses the payment id stored by a previous success test.',
         expected: 'HTTP 200 with payment body',
         run: async (ctx) => {
           if (!ctx.lastPaymentId) {
@@ -411,7 +439,9 @@ export const TEST_SECTIONS: TestSection[] = [
       {
         id: 'query-not-found',
         name: 'Payment not found',
-        description: 'GET random UUID that does not exist.',
+        method: 'GET',
+        path: '/api/v1/payments/00000000-0000-0000-0000-000000000099',
+        description: 'Random UUID that does not exist in the database.',
         expected: 'HTTP 404 Not Found',
         run: async (_ctx) => {
           const result = await getPayment('00000000-0000-0000-0000-000000000099');
