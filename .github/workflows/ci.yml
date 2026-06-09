@@ -103,10 +103,12 @@ jobs:
 
       - name: Run integration tests
         run: |
-          mvn -pl payment-service test --no-transfer-progress \
-            -Dtest=PaymentServiceIntegrationTest,PaymentApiSecurityTest,OutboxRelayIntegrationTest
-          mvn -pl notification-service test --no-transfer-progress \
-            -Dtest=WebhookNotificationServiceTest
+          mvn -pl payment-service -am test --no-transfer-progress \
+            -Dtest=PaymentServiceIntegrationTest,PaymentApiSecurityTest,OutboxRelayIntegrationTest \
+            -Dsurefire.failIfNoSpecifiedTests=false
+          mvn -pl notification-service -am test --no-transfer-progress \
+            -Dtest=WebhookNotificationServiceTest \
+            -Dsurefire.failIfNoSpecifiedTests=false
           mvn -pl webhook-receiver test --no-transfer-progress \
             -Dtest=WebhookReceiverControllerTest
 
