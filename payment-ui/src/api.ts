@@ -1,6 +1,14 @@
 import { PaymentResponse, TERMINAL_STATUSES } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+const API_KEY = import.meta.env.VITE_API_KEY ?? 'pgw-demo-key-32chars-minimum!!';
+
+function apiHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return {
+    'X-Api-Key': API_KEY,
+    ...extra,
+  };
+}
 
 export interface ApiCallResult {
   ok: boolean;
@@ -20,9 +28,9 @@ export interface CreatePaymentParams {
 }
 
 export async function createPayment(params: CreatePaymentParams): Promise<ApiCallResult> {
-  const headers: Record<string, string> = {
+  const headers: Record<string, string> = apiHeaders({
     'Content-Type': 'application/json',
-  };
+  });
 
   if (!params.skipIdempotencyHeader && params.idempotencyKey) {
     headers['Idempotency-Key'] = params.idempotencyKey;
@@ -55,7 +63,9 @@ export async function createPayment(params: CreatePaymentParams): Promise<ApiCal
 
 export async function getPayment(paymentId: string): Promise<ApiCallResult> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/payments/${paymentId}`);
+    const res = await fetch(`${API_BASE}/api/v1/payments/${paymentId}`, {
+      headers: apiHeaders(),
+    });
     const body = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, headers: res.headers, body };
   } catch (e) {

@@ -59,6 +59,9 @@ management:
       show-details: when_authorized
 
 payment:
+  security:
+    enabled: true
+    api-key-header: X-Api-Key
   outbox:
     relay:
       enabled: true

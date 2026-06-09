@@ -13,6 +13,7 @@ import com.finance.payment.domain.PaymentStatus;
 import com.finance.payment.repository.PaymentAuditEventRepository;
 import com.finance.payment.repository.PaymentOutboxRepository;
 import com.finance.payment.repository.PaymentRepository;
+import com.finance.payment.security.MerchantAccessGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,12 +39,14 @@ public class PaymentService {
     private final PaymentOutboxRepository outboxRepository;
     private final PaymentAuditEventRepository auditEventRepository;
     private final IdempotencyService idempotencyService;
+    private final MerchantAccessGuard merchantAccessGuard;
 
     /**
      * Creates a payment idempotently and enqueues a {@link PaymentEventType#PAYMENT_INITIATED} outbox event.
      */
     @Transactional
     public IdempotentResult<PaymentResponse> initiatePayment(CreatePaymentRequest request, String idempotencyKey) {
+        merchantAccessGuard.assertMerchantMatches(request.merchantId());
         return idempotencyService.executeIdempotent(idempotencyKey, () -> {
             Payment payment = Payment.initiate(
                     idempotencyKey,
@@ -147,7 +150,9 @@ public class PaymentService {
     }
 
     public PaymentResponse getPayment(UUID paymentId) {
-        return PaymentResponse.from(findPaymentOrThrow(paymentId));
+        Payment payment = findPaymentOrThrow(paymentId);
+        merchantAccessGuard.assertOwns(payment);
+        return PaymentResponse.from(payment);
     }
 
     private Payment findPaymentOrThrow(UUID id) {

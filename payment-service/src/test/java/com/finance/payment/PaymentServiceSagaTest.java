@@ -5,6 +5,7 @@ import com.finance.payment.domain.PaymentStatus;
 import com.finance.payment.repository.PaymentAuditEventRepository;
 import com.finance.payment.repository.PaymentOutboxRepository;
 import com.finance.payment.repository.PaymentRepository;
+import com.finance.payment.security.MerchantAccessGuard;
 import com.finance.payment.service.IdempotencyService;
 import com.finance.payment.service.PaymentService;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,8 @@ class PaymentServiceSagaTest {
     private PaymentAuditEventRepository auditEventRepository;
     @Mock
     private IdempotencyService idempotencyService;
+    @Mock
+    private MerchantAccessGuard merchantAccessGuard;
 
     @InjectMocks
     private PaymentService paymentService;
