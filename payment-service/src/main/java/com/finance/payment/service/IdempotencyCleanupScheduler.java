@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+/** Scheduler per la pulizia periodica delle chiavi di idempotenza scadute. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -16,6 +17,7 @@ public class IdempotencyCleanupScheduler {
 
     private final IdempotencyKeyRepository idempotencyKeyRepository;
 
+    /** Elimina le chiavi di idempotenza oltre la scadenza TTL. */
     @Scheduled(cron = "${payment.cleanup.idempotency-cron:0 15 * * * *}")
     @Transactional
     public void purgeExpiredKeys() {

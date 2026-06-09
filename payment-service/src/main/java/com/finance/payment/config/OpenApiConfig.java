@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.info.Info;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/** Configurazione OpenAPI/Swagger per la documentazione delle API REST. */
 @Configuration
 public class OpenApiConfig {
 
@@ -13,7 +14,7 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("Payment Gateway API")
-                        .description("Saga + Outbox + Idempotency payment orchestration")
+                        .description("Orchestrazione pagamenti con saga, outbox transazionale e idempotenza")
                         .version("0.1.0"));
     }
 }

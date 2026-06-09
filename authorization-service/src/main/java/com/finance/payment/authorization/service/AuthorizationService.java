@@ -10,10 +10,10 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Authorization saga step: reserve funds with the external processor and compensate on capture failure.
+ * Step saga di autorizzazione: riserva fondi sul processore esterno e compensa in caso di fallimento capture.
  * <p>
- * Idempotency is enforced at the Kafka consumer via {@link com.finance.payment.common.saga.SagaEventDedupService}
- * (PostgreSQL) — not Redis, to keep financial dedup durable.
+ * L'idempotenza è garantita dal consumer Kafka via {@link com.finance.payment.common.saga.SagaEventDedupService}
+ * (PostgreSQL) — non Redis, per mantenere la dedup finanziaria durabile.
  */
 @Service
 @RequiredArgsConstructor
@@ -23,14 +23,14 @@ public class AuthorizationService {
     private final ExternalProcessorClient processorClient;
 
     /**
-     * Calls the processor to authorize (hold) the payment amount.
+     * Invoca il processore per autorizzare (bloccare) l'importo del pagamento.
      */
     public AuthorizationResult authorize(UUID paymentId, BigDecimal amount, String currency) {
         return processorClient.authorize(paymentId, amount, currency);
     }
 
     /**
-     * Saga compensation: void/release a prior authorization when capture fails downstream.
+     * Compensazione saga: annulla/rilascia un'autorizzazione precedente quando la capture fallisce downstream.
      */
     public void voidAuthorization(UUID paymentId, String authorizationCode) {
         log.info("Voiding authorization for payment {} code {}", paymentId, authorizationCode);

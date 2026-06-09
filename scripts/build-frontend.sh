@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build Docker image for the payment-ui frontend (also invoked by compose service build-frontend).
+# Build dell'immagine Docker del frontend payment-ui (invocato anche dal servizio compose build-frontend).
 set -eu
 
 ROOT="$(CDPATH= cd "$(dirname "$0")/.." && pwd)"

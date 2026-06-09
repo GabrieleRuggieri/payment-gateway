@@ -1,3 +1,6 @@
+/**
+ * Test unitari per la definizione della collection API (cartelle e aspettative).
+ */
 import { describe, expect, it } from 'vitest';
 import { TEST_SECTIONS } from './testCollection';
 

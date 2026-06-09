@@ -1,5 +1,9 @@
+/**
+ * Tile bento per configurazione merchant e chiave di idempotenza.
+ */
 import { ConfigureArt } from './illustrations/ConfigureArt';
 
+/** Campi e callback del form di configurazione pagamento. */
 interface PaymentFormProps {
   merchantId: string;
   idempotencyKey: string;
@@ -11,7 +15,7 @@ interface PaymentFormProps {
   onNewKey: () => void;
 }
 
-/** Peach bento tile — wireframe art + merchant & idempotency configuration. */
+/** Tile bento peach — illustrazione wireframe e campi merchant/idempotency. */
 export function PaymentForm({
   merchantId,
   idempotencyKey,

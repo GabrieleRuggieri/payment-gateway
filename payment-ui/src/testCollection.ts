@@ -1,8 +1,14 @@
+/**
+ * Definizione della collection di test API per payment-service.
+ * Ogni sezione raggruppa richieste con runner, aspettative e contesto condiviso.
+ */
 import { ApiCallResult, DEFAULT_MERCHANT_ID, createPayment, getPayment, pollUntilTerminal } from './api';
 import { PaymentResponse, PaymentStatus } from './types';
 
+/** Stato UI di un singolo test nella collection. */
 export type TestRunStatus = 'idle' | 'running' | 'passed' | 'failed';
 
+/** Snapshot dello stato di esecuzione mostrato nel pannello risultati. */
 export interface TestRunState {
   status: TestRunStatus;
   httpStatus?: number;
@@ -11,6 +17,7 @@ export interface TestRunState {
   detail?: string;
 }
 
+/** Esito restituito dal runner di un test case. */
 export interface TestRunResult {
   pass: boolean;
   httpStatus: number;
@@ -19,6 +26,7 @@ export interface TestRunResult {
   finalStatus?: string;
 }
 
+/** Contesto mutabile condiviso tra test della stessa esecuzione (ID pagamento, chiavi). */
 export interface TestContext {
   merchantId: string;
   lastPaymentId: string | null;
@@ -26,6 +34,7 @@ export interface TestContext {
   replayIdempotencyKey: string | null;
 }
 
+/** Singola richiesta API eseguibile dalla UI collection. */
 export interface ApiTestCase {
   id: string;
   name: string;
@@ -36,6 +45,7 @@ export interface ApiTestCase {
   run: (ctx: TestContext) => Promise<TestRunResult>;
 }
 
+/** Cartella di test con metadati di presentazione UI. */
 export interface TestSection {
   id: string;
   eyebrow: string;
@@ -45,11 +55,13 @@ export interface TestSection {
   tests: ApiTestCase[];
 }
 
+/** Estrae PaymentResponse dal body se presente e valido. */
 function paymentFrom(result: ApiCallResult): PaymentResponse | null {
   if (!result.body || typeof result.body !== 'object') return null;
   return result.body as PaymentResponse;
 }
 
+/** Serializza corpo o errore per il pannello dettaglio. */
 function formatBody(result: ApiCallResult): string {
   if (result.error) return result.error;
   try {
@@ -59,7 +71,7 @@ function formatBody(result: ApiCallResult): string {
   }
 }
 
-/** POST /payments always returns 200 when accepted; poll GET until saga reaches a terminal status. */
+/** POST /payments restituisce 200 se accettato; polling GET fino a stato terminale saga. */
 async function assertSagaOutcome(
   created: ApiCallResult,
   expectedFinal: PaymentStatus | PaymentStatus[],
@@ -100,6 +112,7 @@ async function assertSagaOutcome(
   };
 }
 
+/** Crea un contesto test vuoto per una nuova esecuzione della collection. */
 export function createInitialTestContext(merchantId: string): TestContext {
   return {
     merchantId,
@@ -109,6 +122,7 @@ export function createInitialTestContext(merchantId: string): TestContext {
   };
 }
 
+/** Sezioni e test case esposti nella UI Collection. */
 export const TEST_SECTIONS: TestSection[] = [
   {
     id: 'success',

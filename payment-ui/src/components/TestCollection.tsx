@@ -1,3 +1,6 @@
+/**
+ * UI della collection di test API: cartelle, esecuzione singola o batch, pannello risposta.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   TEST_SECTIONS,
@@ -7,6 +10,7 @@ import {
   createInitialTestContext,
 } from '../testCollection';
 
+/** Merchant ID per i test e callback opzionale al completamento di un pagamento. */
 interface TestCollectionProps {
   merchantId: string;
   onPaymentResult?: (paymentId: string) => void;
@@ -14,11 +18,12 @@ interface TestCollectionProps {
 
 const TOTAL_TESTS = TEST_SECTIONS.reduce((sum, section) => sum + section.tests.length, 0);
 
+/** Stato iniziale vuoto per tutti i test. */
 function emptyRunState(): Record<string, TestRunState> {
   return {};
 }
 
-/** API test collection — folders, requests, run actions and response panel. */
+/** Collection test API — cartelle, richieste, azioni run e pannello risposta. */
 export function TestCollection({ merchantId, onPaymentResult }: TestCollectionProps) {
   const [runStates, setRunStates] = useState<Record<string, TestRunState>>(emptyRunState);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -214,6 +219,7 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
   );
 }
 
+/** Badge compatto con esito HTTP e stato finale saga. */
 function StatusBadge({
   status,
   httpStatus,

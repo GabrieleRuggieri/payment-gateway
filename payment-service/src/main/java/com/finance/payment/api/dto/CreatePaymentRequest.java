@@ -10,6 +10,15 @@ import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Payload di richiesta per l'avvio di un pagamento.
+ *
+ * @param merchantId   identificativo del merchant
+ * @param amount       importo positivo con fino a 4 decimali
+ * @param currency     codice ISO 4217 a 3 lettere maiuscole
+ * @param description  descrizione opzionale del pagamento
+ * @param metadata     metadati aggiuntivi opzionali
+ */
 public record CreatePaymentRequest(
         @NotNull UUID merchantId,
         @NotNull @DecimalMin(value = "0.0001", message = "Amount must be positive") BigDecimal amount,

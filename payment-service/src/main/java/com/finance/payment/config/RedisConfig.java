@@ -6,9 +6,9 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * Redis wiring for optional non-critical features (rate limiting, hot caches).
+ * Configurazione Redis per funzionalità non critiche (rate limiting, cache).
  * <p>
- * Idempotency and saga dedup intentionally use PostgreSQL — losing a Redis key could double-charge.
+ * Idempotenza e dedup saga usano PostgreSQL — perdere una chiave Redis potrebbe causare un addebito doppio.
  */
 @Configuration
 public class RedisConfig {

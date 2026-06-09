@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.util.UUID;
 
+/** Entità JPA che mappa l'hash SHA-256 di una chiave API al merchant proprietario. */
 @Entity
 @Table(name = "merchant_api_keys")
 @Getter

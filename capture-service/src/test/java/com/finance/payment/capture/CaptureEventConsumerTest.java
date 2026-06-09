@@ -26,7 +26,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for {@link CaptureEventConsumer}.
+ * Test unitari per {@link CaptureEventConsumer}: capture su {@code PAYMENT_AUTHORIZED}, pubblicazione
+ * di fallimenti, deduplicazione, routing degli eventi e gestione errori.
  */
 @ExtendWith(MockitoExtension.class)
 class CaptureEventConsumerTest {

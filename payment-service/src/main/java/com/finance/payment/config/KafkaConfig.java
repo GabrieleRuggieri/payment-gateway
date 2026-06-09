@@ -17,12 +17,13 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+/** Configurazione Kafka del payment-service: topic, producer e template. */
 @Configuration
 public class KafkaConfig {
 
     /**
-     * Declarative topic provisioning — preferred over KAFKA_AUTO_CREATE_TOPICS_ENABLE.
-     * Partition key = paymentId guarantees ordering per payment saga.
+     * Provisioning dichiarativo dei topic — preferito a KAFKA_AUTO_CREATE_TOPICS_ENABLE.
+     * Chiave di partizione = paymentId garantisce l'ordinamento per saga di pagamento.
      */
     @Bean
     NewTopic paymentEventsTopic() {

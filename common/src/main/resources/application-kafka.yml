@@ -1,5 +1,5 @@
-# Shared Kafka client defaults (imported by all services).
-# KRaft cluster — no Zookeeper. See docker-compose.yml.
+# Default condivisi del client Kafka (importati da tutti i servizi).
+# Cluster KRaft — senza Zookeeper. Vedi docker-compose.yml.
 spring:
   kafka:
     producer:

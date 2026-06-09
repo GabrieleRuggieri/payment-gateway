@@ -1,3 +1,6 @@
+/**
+ * Test unitari per il modello di stati pagamento e costanti saga.
+ */
 import { describe, expect, it } from 'vitest';
 import { SAGA_STEPS, TERMINAL_STATUSES } from './types';
 

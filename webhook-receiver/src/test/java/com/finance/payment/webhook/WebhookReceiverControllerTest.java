@@ -12,6 +12,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Verifica che {@link WebhookReceiverController} accetti webhook via POST e li esponga
+ * nell'endpoint GET per ispezione dei payload ricevuti.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 class WebhookReceiverControllerTest {

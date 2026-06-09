@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 /**
- * Updates the payment aggregate when downstream saga steps complete.
+ * Aggiorna l'aggregato pagamento al completamento degli step downstream della saga.
  */
 @Component
 @RequiredArgsConstructor
@@ -28,6 +28,7 @@ public class PaymentSagaConsumer {
     private final SagaEventDedupService dedupService;
     private final ObjectMapper objectMapper;
 
+    /** Consuma eventi saga da Kafka e applica le transizioni di stato corrispondenti. */
     @KafkaListener(
             topics = "${payment.kafka.topics.events:payment.events}",
             groupId = CONSUMER_GROUP,

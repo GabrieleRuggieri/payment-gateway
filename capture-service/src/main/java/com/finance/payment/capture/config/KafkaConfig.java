@@ -11,6 +11,7 @@ import org.springframework.kafka.core.ProducerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+/** Configurazione del producer Kafka per la pubblicazione degli esiti di capture. */
 @Configuration
 public class KafkaConfig {
 

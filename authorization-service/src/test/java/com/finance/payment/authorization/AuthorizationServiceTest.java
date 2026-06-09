@@ -17,7 +17,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link AuthorizationService}.
+ * Test unitari per {@link AuthorizationService}: delega al processore esterno, propagazione degli errori
+ * e annullamento dell'autorizzazione.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthorizationServiceTest {

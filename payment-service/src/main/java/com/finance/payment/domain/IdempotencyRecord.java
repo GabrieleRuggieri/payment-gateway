@@ -15,6 +15,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.UUID;
 
+/** Record persistente di una chiave di idempotenza con la risposta serializzata. */
 @Entity
 @Table(name = "idempotency_keys")
 @Getter

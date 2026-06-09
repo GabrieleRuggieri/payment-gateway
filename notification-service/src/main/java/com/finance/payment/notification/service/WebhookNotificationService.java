@@ -13,10 +13,10 @@ import java.time.Duration;
 import java.util.Set;
 
 /**
- * Delivers merchant webhooks for terminal and milestone saga events.
+ * Invia webhook ai merchant per eventi terminali e milestone della saga.
  * <p>
- * Deduplication uses Redis ({@code SET NX} with TTL) — appropriate for notifications where
- * duplicate webhooks are annoying but not financially dangerous. Money-critical dedup stays in PostgreSQL.
+ * La deduplicazione usa Redis ({@code SET NX} con TTL) — appropriata per le notifiche dove
+ * webhook duplicati sono fastidiosi ma non pericolosi finanziariamente. La dedup critica resta su PostgreSQL.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,7 +42,7 @@ public class WebhookNotificationService {
     private String defaultWebhookUrl;
 
     /**
-     * POSTs the event JSON to the merchant webhook if not already delivered for this payment+event pair.
+     * Invia via POST l'evento JSON al webhook del merchant se non già consegnato per la coppia pagamento+evento.
      */
     public void notifyMerchant(PaymentEvent event) {
         if (!NOTIFY_EVENT_TYPES.contains(event.getEventType())) {

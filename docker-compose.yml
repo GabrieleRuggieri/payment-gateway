@@ -1,4 +1,4 @@
-# Application images are rebuilt automatically by build-backend / build-frontend before app services start.
+# Le immagini applicative vengono ricostruite da build-backend / build-frontend prima dell'avvio dei servizi.
 #   docker compose up -d
 services:
   build-backend:
@@ -39,8 +39,8 @@ services:
       timeout: 5s
       retries: 5
 
-  # Apache Kafka in KRaft mode (no Zookeeper).
-  # Dual listeners: 29092 = Docker network, 9092 = host machine (IDE / mvn spring-boot:run).
+  # Apache Kafka in modalità KRaft (senza Zookeeper).
+  # Doppio listener: 29092 = rete Docker, 9092 = host locale (IDE / mvn spring-boot:run).
   kafka:
     image: confluentinc/cp-kafka:7.8.0
     hostname: kafka
@@ -63,7 +63,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      # Topics created by payment-service (NewTopic beans), not auto-created
+      # Topic creati da payment-service (bean NewTopic), non auto-creati
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_NUM_PARTITIONS: 6
     healthcheck:
@@ -118,8 +118,8 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
     healthcheck:
-      # Flyway runs on payment-service startup; other services must wait for this to be healthy
-      # before connecting so that the schema is guaranteed to exist.
+      # Flyway gira all'avvio di payment-service; gli altri servizi attendono che sia healthy
+      # così lo schema DB è garantito prima delle connessioni.
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 10s
       timeout: 5s
@@ -135,8 +135,8 @@ services:
     depends_on:
       build-backend:
         condition: service_completed_successfully
-      # Waits for payment-service to be healthy, which guarantees Flyway has run
-      # and the saga_processed_events table exists before this service starts.
+      # Attende payment-service healthy: Flyway ha già eseguito le migration
+      # e la tabella saga_processed_events esiste prima dell'avvio di questo servizio.
       payment-service:
         condition: service_healthy
       kafka:

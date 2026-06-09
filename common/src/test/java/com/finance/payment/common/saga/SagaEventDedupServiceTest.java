@@ -16,8 +16,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link SagaEventDedupService}.
- * Verifies INSERT ON CONFLICT logic via mocked JdbcTemplate.
+ * Test unitari per {@link SagaEventDedupService}: verifica la logica INSERT ON CONFLICT
+ * tramite {@link JdbcTemplate} mockato per eventi nuovi e duplicati.
  */
 @ExtendWith(MockitoExtension.class)
 class SagaEventDedupServiceTest {

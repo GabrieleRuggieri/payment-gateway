@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
+/** Controller REST di demo per ricevere e ispezionare i webhook inviati dal notification-service. */
 @RestController
 @RequestMapping("/webhooks")
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class WebhookReceiverController {
 
     private final WebhookEventStore eventStore;
 
+    /** Accetta un payload webhook e lo memorizza nello store in memoria. */
     @PostMapping("/payments")
     public ResponseEntity<Void> receive(@RequestBody String payload) {
         eventStore.add(payload);
@@ -27,6 +29,7 @@ public class WebhookReceiverController {
         return ResponseEntity.accepted().build();
     }
 
+    /** Restituisce lo snapshot degli ultimi webhook ricevuti. */
     @GetMapping("/payments")
     public List<Map<String, Object>> list() {
         return eventStore.snapshot().stream()

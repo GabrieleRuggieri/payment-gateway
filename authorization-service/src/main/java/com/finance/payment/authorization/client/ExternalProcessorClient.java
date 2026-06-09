@@ -16,9 +16,9 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Resilience4j-wrapped client for an external payment processor (mocked for the demo).
+ * Client Resilience4j-wrapped verso un processore di pagamento esterno (mockato per la demo).
  * <p>
- * Mock rules: amounts &gt; 9999 return a permanent processor decline (no saga retry loop).
+ * Regole mock: importi &gt; 9999 restituiscono un rifiuto permanente del processore (nessun retry saga).
  */
 @Component
 @RequiredArgsConstructor
@@ -29,7 +29,7 @@ public class ExternalProcessorClient {
     private final RetryRegistry retryRegistry;
 
     /**
-     * Authorize (hold) funds. Replace {@link #callProcessor} with a real HTTP integration.
+     * Autorizza (blocca) i fondi. Sostituire {@link #callProcessor} con un'integrazione HTTP reale.
      */
     public AuthorizationResult authorize(UUID paymentId, BigDecimal amount, String currency) {
         try {
@@ -41,7 +41,7 @@ public class ExternalProcessorClient {
     }
 
     /**
-     * Void a prior authorization — compensation path when capture fails.
+     * Annulla un'autorizzazione precedente — percorso di compensazione quando la capture fallisce.
      */
     public void voidAuthorization(UUID paymentId, String authorizationCode) {
         executeWithResilience(() -> {

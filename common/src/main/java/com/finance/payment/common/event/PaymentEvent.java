@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Kafka envelope for saga events on topic {@code payment.events}.
+ * Involucro Kafka per gli eventi della saga sul topic {@code payment.events}.
  */
 @Data
 @Builder
@@ -28,6 +28,7 @@ public class PaymentEvent {
     @Builder.Default
     private Instant occurredAt = Instant.now();
 
+    /** Crea un evento con timestamp corrente e payload normalizzato. */
     public static PaymentEvent of(PaymentEventType type, UUID paymentId, Map<String, Object> payload) {
         return PaymentEvent.builder()
                 .eventType(type.wireName())

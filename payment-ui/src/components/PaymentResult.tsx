@@ -1,13 +1,17 @@
+/**
+ * Tile bento per risposta JSON e riepilogo stato pagamento.
+ */
 import { PaymentResponse } from '../types';
 import { ShipArt } from './illustrations/ShipArt';
 import { TogetherArt } from './illustrations/TogetherArt';
 
+/** Pagamento corrente e flag replay idempotente. */
 interface PaymentResultProps {
   payment: PaymentResponse | null;
   replayed: boolean;
 }
 
-/** Dark + orange bento tiles — wireframe art, status and JSON response. */
+/** Tile bento scura e arancione — wireframe, stato e JSON di risposta. */
 export function PaymentResult({ payment, replayed }: PaymentResultProps) {
   return (
     <>

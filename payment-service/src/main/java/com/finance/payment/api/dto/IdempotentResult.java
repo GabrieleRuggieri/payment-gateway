@@ -1,11 +1,11 @@
 package com.finance.payment.api.dto;
 
 /**
- * Wraps an idempotent operation outcome so callers can distinguish first execution from replay.
+ * Incapsula l'esito di un'operazione idempotente per distinguere la prima esecuzione dal replay.
  *
- * @param <T> response type (e.g. {@link PaymentResponse})
- * @param value   serialized business response
- * @param replayed {@code true} when the idempotency key was seen before within the TTL window
+ * @param <T>      tipo della risposta (es. {@link PaymentResponse})
+ * @param value    risposta di business serializzata
+ * @param replayed {@code true} se la chiave di idempotenza era già stata vista entro la finestra TTL
  */
 public record IdempotentResult<T>(T value, boolean replayed) {
 

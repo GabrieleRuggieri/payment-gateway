@@ -3,6 +3,7 @@ package com.finance.payment.authorization.dto;
 import lombok.Builder;
 import lombok.Value;
 
+/** Esito di una richiesta di autorizzazione al processore esterno. */
 @Value
 @Builder
 public class AuthorizationResult {

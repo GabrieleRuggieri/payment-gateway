@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Polls {@code payment_outbox} and publishes pending events to Kafka (at-least-once delivery).
+ * Interroga {@code payment_outbox} e pubblica gli eventi in sospeso su Kafka (consegna at-least-once).
  * <p>
- * Uses {@code SELECT FOR UPDATE SKIP LOCKED} so multiple relay instances can run safely in parallel.
+ * Usa {@code SELECT FOR UPDATE SKIP LOCKED} per consentire più istanze relay in parallelo.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,6 +35,7 @@ public class OutboxRelayService {
     @Value("${payment.outbox.relay.batch-size:100}")
     private int batchSize;
 
+    /** Ciclo schedulato: pubblica un batch di eventi outbox in sospeso. */
     @Scheduled(fixedDelayString = "${payment.outbox.relay.fixed-delay-ms:1000}")
     @Transactional
     public void relay() {

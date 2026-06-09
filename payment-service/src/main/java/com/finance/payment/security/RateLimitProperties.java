@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/** Proprietà di configurazione per il rate limiting API per merchant. */
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "payment.rate-limit")

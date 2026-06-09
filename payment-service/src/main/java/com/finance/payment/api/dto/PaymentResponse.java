@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+/** DTO di risposta con lo stato corrente di un pagamento. */
 public record PaymentResponse(
         UUID id,
         UUID merchantId,
@@ -20,6 +21,7 @@ public record PaymentResponse(
         Instant updatedAt
 ) {
 
+    /** Mappa l'entità di dominio {@link Payment} nel DTO di risposta. */
     public static PaymentResponse from(Payment payment) {
         return new PaymentResponse(
                 payment.getId(),

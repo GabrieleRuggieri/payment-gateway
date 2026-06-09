@@ -5,7 +5,8 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
 
 /**
- * Shared dynamic properties for Testcontainers-based integration tests.
+ * Proprietà dinamiche condivise per i test di integrazione basati su Testcontainers
+ * (PostgreSQL, Kafka e impostazioni Redis/rate-limit disabilitate).
  */
 public final class IntegrationTestProperties {
 

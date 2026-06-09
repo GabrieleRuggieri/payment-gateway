@@ -11,6 +11,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Verifica le risposte di {@link ExternalProcessorClient}: autorizzazione entro il limite del processore
+ * e rifiuto quando l'importo supera la soglia consentita.
+ */
 class ExternalProcessorClientTest {
 
     private ExternalProcessorClient client;

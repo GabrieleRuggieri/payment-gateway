@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build Docker images for all backend microservices (also invoked by compose service build-backend).
+# Build delle immagini Docker di tutti i microservizi backend (invocato anche dal servizio compose build-backend).
 set -eu
 
 ROOT="$(CDPATH= cd "$(dirname "$0")/.." && pwd)"

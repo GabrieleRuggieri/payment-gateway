@@ -1,10 +1,14 @@
+/**
+ * Layout pagina con navigazione sticky, main e footer.
+ */
 import { ReactNode } from 'react';
 
+/** Contenuto figlio da renderizzare nel main. */
 interface LayoutProps {
   children: ReactNode;
 }
 
-/** Top navigation — sticky brand bar with outline + filled CTAs. */
+/** Barra di navigazione superiore sticky con link a risorse esterne. */
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="page">

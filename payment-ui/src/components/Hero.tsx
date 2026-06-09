@@ -1,3 +1,8 @@
+/**
+ * Sezione hero con composer importo/valuta e pill di esempio.
+ */
+
+/** Proprietà del composer hero (importo, valuta, submit). */
 interface HeroProps {
   amount: string;
   currency: string;
@@ -14,7 +19,7 @@ const EXAMPLES = [
   { label: 'USD $150.00', amount: '150.00', currency: 'USD' },
 ];
 
-/** Centered hero — large headline, rounded composer, example pills. */
+/** Hero centrato — titolo, composer arrotondato e pill di esempio. */
 export function Hero({
   amount,
   currency,

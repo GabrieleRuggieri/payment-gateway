@@ -11,7 +11,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Forwards saga status events to merchant webhooks (filtered inside {@link WebhookNotificationService}).
+ * Inoltra gli eventi di stato saga ai webhook merchant (filtrati in {@link WebhookNotificationService}).
  */
 @Component
 @RequiredArgsConstructor
@@ -21,6 +21,7 @@ public class NotificationEventConsumer {
     private final WebhookNotificationService notificationService;
     private final ObjectMapper objectMapper;
 
+    /** Consuma eventi saga e delega l'invio webhook al servizio di notifica. */
     @KafkaListener(
             topics = TopicConstants.PAYMENT_EVENTS,
             groupId = "notification-service",

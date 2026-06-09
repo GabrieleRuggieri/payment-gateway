@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Payment aggregate root — enforces valid state transitions for the saga FSM.
+ * Radice dell'aggregato pagamento — applica le transizioni di stato valide della FSM della saga.
  */
 @Entity
 @Table(name = "payments")

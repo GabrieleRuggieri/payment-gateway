@@ -1,4 +1,4 @@
-/** Device wireframes — dark bento tile. */
+/** Wireframe dispositivi — tile bento scura. */
 export function ShipArt() {
   return (
     <svg className="bento-art__svg bento-art__svg--light" viewBox="0 0 300 140" fill="none" aria-hidden>

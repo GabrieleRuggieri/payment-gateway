@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 
+/** Auto-configurazione del servizio di deduplicazione eventi saga su PostgreSQL. */
 @Configuration
 public class SagaEventDedupAutoConfiguration {
 

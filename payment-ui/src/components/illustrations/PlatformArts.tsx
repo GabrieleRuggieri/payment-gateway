@@ -1,5 +1,6 @@
-/** Platform section illustrations — one per infrastructure card. */
+/** Illustrazioni SVG per le card della sezione piattaforma. */
 
+/** Diagramma flusso pagamento → settlement. */
 export function PaymentFlowArt() {
   return (
     <svg viewBox="0 0 200 160" fill="none" className="platform-art__svg" aria-hidden>
@@ -21,6 +22,7 @@ export function PaymentFlowArt() {
   );
 }
 
+/** Stack infrastrutturale (DB, messaging, cache, outbox). */
 export function StackArt() {
   const items = ['PostgreSQL', 'Kafka', 'Redis', 'Outbox'];
   return (
@@ -38,6 +40,7 @@ export function StackArt() {
   );
 }
 
+/** Hub integrazioni API, webhook ed eventi. */
 export function IntegrationsArt() {
   return (
     <svg viewBox="0 0 200 160" fill="none" className="platform-art__svg" aria-hidden>
@@ -72,6 +75,7 @@ export function IntegrationsArt() {
   );
 }
 
+/** Scudo sicurezza (idempotenza, deduplicazione). */
 export function SecurityArt() {
   return (
     <svg viewBox="0 0 200 160" fill="none" className="platform-art__svg platform-art__svg--light" aria-hidden>

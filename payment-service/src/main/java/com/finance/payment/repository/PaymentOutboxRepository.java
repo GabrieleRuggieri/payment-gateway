@@ -8,12 +8,13 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.UUID;
 
+/** Repository JPA per la tabella outbox transazionale. */
 public interface PaymentOutboxRepository extends JpaRepository<PaymentOutbox, Long> {
 
     List<PaymentOutbox> findByAggregateId(UUID aggregateId);
 
     /**
-     * Fetches pending outbox rows with row-level lock, skipping rows locked by other relay instances.
+     * Recupera le righe outbox in sospeso con lock a livello riga, saltando quelle bloccate da altre istanze relay.
      */
     @Query(value = """
             SELECT * FROM payment_outbox

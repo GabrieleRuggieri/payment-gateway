@@ -27,8 +27,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for {@link AuthorizationEventConsumer}.
- * Mocks all dependencies; calls the listener method directly to validate routing logic.
+ * Test unitari per {@link AuthorizationEventConsumer}: mock delle dipendenze e invocazione diretta del listener
+ * per verificare autorizzazione, compensazione su capture fallita, deduplicazione e gestione errori.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthorizationEventConsumerTest {
@@ -49,7 +49,7 @@ class AuthorizationEventConsumerTest {
                 kafkaTemplate, objectMapper);
     }
 
-    // ── PAYMENT_INITIATED: successful authorization ───────────────────────────
+    // ── PAYMENT_INITIATED: autorizzazione riuscita ────────────────────────────
 
     @Test
     void shouldAuthorizeOnPaymentInitiated() {
@@ -84,7 +84,7 @@ class AuthorizationEventConsumerTest {
         assertThat(messageCaptor.getValue()).contains("AuthorizationFailed");
     }
 
-    // ── CAPTURE_FAILED: compensation path ─────────────────────────────────────
+    // ── CAPTURE_FAILED: percorso di compensazione ──────────────────────────────
 
     @Test
     void shouldVoidAuthorizationOnCaptureFailed() {
@@ -100,7 +100,7 @@ class AuthorizationEventConsumerTest {
         verify(authorizationService).voidAuthorization(eq(paymentId), eq("AUTH-VOID"));
     }
 
-    // ── Idempotency: duplicate events ─────────────────────────────────────────
+    // ── Idempotenza: eventi duplicati ─────────────────────────────────────────
 
     @Test
     void shouldSkipProcessingForDuplicateEvent() {
@@ -116,7 +116,7 @@ class AuthorizationEventConsumerTest {
         verifyNoMoreInteractions(kafkaTemplate);
     }
 
-    // ── Irrelevant event types ────────────────────────────────────────────────
+    // ── Tipi di evento non pertinenti ───────────────────────────────────────
 
     @Test
     void shouldIgnoreUnrelatedEventTypes() {
@@ -132,7 +132,7 @@ class AuthorizationEventConsumerTest {
         verifyNoMoreInteractions(kafkaTemplate);
     }
 
-    // ── Error handling ────────────────────────────────────────────────────────
+    // ── Gestione errori ───────────────────────────────────────────────────────
 
     @Test
     void shouldWrapExceptionInIllegalStateException() {
@@ -149,7 +149,7 @@ class AuthorizationEventConsumerTest {
                 .hasCauseInstanceOf(RuntimeException.class);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Utility ───────────────────────────────────────────────────────────────
 
     private Map<String, Object> buildPayload(UUID paymentId, String amount, String currency) {
         Map<String, Object> payload = new HashMap<>();

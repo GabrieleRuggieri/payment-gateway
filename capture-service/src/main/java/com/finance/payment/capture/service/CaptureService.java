@@ -9,14 +9,14 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Capture saga step: confirm the authorized amount with the processor (mocked).
+ * Step saga di capture: conferma l'importo autorizzato con il processore (mockato).
  */
 @Service
 @Slf4j
 public class CaptureService {
 
     /**
-     * Captures funds previously authorized. Demo mock always succeeds unless amount is zero.
+     * Cattura i fondi precedentemente autorizzati. Il mock demo ha successo salvo importo zero.
      */
     public CaptureResult capture(UUID paymentId, BigDecimal amount, String currency, String authorizationCode) {
         log.info("Capturing payment {} for {} {} (auth={})", paymentId, amount, currency, authorizationCode);
@@ -28,6 +28,7 @@ public class CaptureService {
         return CaptureResult.success("CAP-" + paymentId.toString().substring(0, 8).toUpperCase());
     }
 
+    /** Esito di un'operazione di capture. */
     @Value
     @Builder
     public static class CaptureResult {

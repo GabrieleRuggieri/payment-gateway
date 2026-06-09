@@ -1,7 +1,7 @@
 package com.finance.payment.common.event;
 
 /**
- * Canonical payment saga event types published on {@code payment.events}.
+ * Tipi canonici di eventi della saga di pagamento pubblicati su {@code payment.events}.
  */
 public enum PaymentEventType {
 
@@ -20,10 +20,12 @@ public enum PaymentEventType {
         this.wireName = wireName;
     }
 
+    /** Restituisce il nome serializzato sull'event bus. */
     public String wireName() {
         return wireName;
     }
 
+    /** Risolve il tipo enum dal nome wire; solleva eccezione se sconosciuto. */
     public static PaymentEventType fromWireName(String wireName) {
         for (PaymentEventType type : values()) {
             if (type.wireName.equals(wireName)) {

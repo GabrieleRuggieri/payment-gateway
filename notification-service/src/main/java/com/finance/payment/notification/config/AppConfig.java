@@ -7,7 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Beans for webhook HTTP delivery and Redis-based notification deduplication.
+ * Bean per la consegna HTTP dei webhook e la deduplicazione delle notifiche su Redis.
  */
 @Configuration
 public class AppConfig {

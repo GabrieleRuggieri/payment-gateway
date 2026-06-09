@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+/** Gestione centralizzata delle eccezioni API con risposte JSON strutturate. */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

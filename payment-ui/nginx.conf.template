@@ -3,10 +3,10 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # Resolve Docker service names at request time (avoids stale IP after container recreate).
+    # Risolve i nomi dei servizi Docker a ogni richiesta (evita IP obsoleti dopo il recreate del container).
     resolver 127.0.0.11 valid=10s ipv6=off;
 
-    # BFF: browser calls /api/* on this host; nginx injects X-Api-Key server-side.
+    # BFF: il browser chiama /api/* su questo host; nginx inietta X-Api-Key lato server.
     location /api/ {
         set $backend "payment-service:8080";
         proxy_pass http://$backend$request_uri;

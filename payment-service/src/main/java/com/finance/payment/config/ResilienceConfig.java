@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Duration;
 
 /**
- * Resilience4j policies for outbound processor calls (used when payment-service adds external integrations).
+ * Policy Resilience4j per le chiamate al processore esterno (usate quando il payment-service integra servizi esterni).
  */
 @Configuration
 public class ResilienceConfig {

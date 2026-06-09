@@ -8,15 +8,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 /**
- * PostgreSQL-backed saga dedup: INSERT ON CONFLICT DO NOTHING.
- * Chosen over Redis for durability and auditability in payment flows.
+ * Deduplicazione saga su PostgreSQL: INSERT ON CONFLICT DO NOTHING.
+ * Scelto al posto di Redis per durabilità e tracciabilità nei flussi di pagamento.
  *
- * <p><strong>Propagation.MANDATORY</strong> is intentional: callers MUST be executed within an
- * active transaction so that the dedup INSERT and the downstream business logic are committed
- * atomically. If the caller's transaction rolls back (e.g. an exception during processing),
- * the dedup row is also rolled back, allowing Kafka to retry the event correctly. Without this
- * constraint a separate commit of the dedup row would prevent retries from re-processing the
- * event, silently routing it to the DLT after exhausting attempts.
+ * <p><strong>Propagation.MANDATORY</strong> è intenzionale: i chiamanti DEVONO essere eseguiti
+ * in una transazione attiva affinché l'INSERT di dedup e la logica di business downstream
+ * vengano committati atomicamente. Se la transazione del chiamante fa rollback (es. eccezione
+ * durante l'elaborazione), anche la riga di dedup viene annullata, consentendo a Kafka di
+ * ritentare l'evento correttamente. Senza questo vincolo, un commit separato della riga di dedup
+ * impedirebbe ai retry di rielaborare l'evento, instradandolo silenziosamente al DLT.
  */
 @RequiredArgsConstructor
 public class SagaEventDedupService {
@@ -30,10 +30,10 @@ public class SagaEventDedupService {
     private final JdbcTemplate jdbcTemplate;
 
     /**
-     * Registers this event as processed within the caller's active transaction.
+     * Registra l'evento come elaborato nella transazione attiva del chiamante.
      *
-     * @return {@code true} if the event is new and should be processed; {@code false} if it is a duplicate
-     * @throws org.springframework.transaction.IllegalTransactionStateException if no active transaction exists
+     * @return {@code true} se l'evento è nuovo e va elaborato; {@code false} se è un duplicato
+     * @throws org.springframework.transaction.IllegalTransactionStateException se non esiste una transazione attiva
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public boolean registerIfNew(String consumerGroup, UUID paymentId, String eventType) {

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Serializes {@link PaymentEvent} envelopes for the transactional outbox relay.
+ * Serializza gli involucri {@link PaymentEvent} per il relay outbox transazionale.
  */
 @Component
 @RequiredArgsConstructor

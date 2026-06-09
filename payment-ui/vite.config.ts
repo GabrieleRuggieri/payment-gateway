@@ -1,3 +1,7 @@
+/**
+ * Configurazione Vite: dev server sulla porta 3000 con proxy BFF verso payment-service.
+ * In sviluppo inietta X-Api-Key dalla variabile PAYMENT_API_KEY (mai esposta al browser).
+ */
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 

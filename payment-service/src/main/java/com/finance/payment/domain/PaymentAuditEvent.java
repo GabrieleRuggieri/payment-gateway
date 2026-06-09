@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Immutable audit trail for payment state transitions.
+ * Audit trail immutabile delle transizioni di stato del pagamento.
  */
 @Entity
 @Table(name = "payment_events")

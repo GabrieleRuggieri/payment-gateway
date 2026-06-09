@@ -1,4 +1,4 @@
-/** Wireframe payment form mock — peach bento tile. */
+/** Mock wireframe del form pagamento — tile bento peach. */
 export function ConfigureArt() {
   return (
     <svg className="bento-art__svg" viewBox="0 0 280 160" fill="none" aria-hidden>

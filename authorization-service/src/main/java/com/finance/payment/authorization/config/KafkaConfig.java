@@ -12,8 +12,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Kafka producer for publishing authorization outcomes.
- * Consumer factory + DLT are provided by {@link com.finance.payment.common.kafka.KafkaListenerAutoConfiguration}.
+ * Configurazione del producer Kafka per la pubblicazione degli esiti di autorizzazione.
+ * Factory consumer e DLT sono forniti da {@link com.finance.payment.common.kafka.KafkaListenerAutoConfiguration}.
  */
 @Configuration
 public class KafkaConfig {

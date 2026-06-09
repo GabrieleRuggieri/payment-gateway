@@ -21,8 +21,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Shared listener setup: manual ack per record + DLT routing on persistent failures.
- * Works with KRaft clusters (no Zookeeper).
+ * Configurazione condivisa dei listener: ack manuale per record e instradamento DLT su errori persistenti.
+ * Compatibile con cluster KRaft (senza Zookeeper).
  */
 @AutoConfiguration
 @ConditionalOnClass(KafkaTemplate.class)

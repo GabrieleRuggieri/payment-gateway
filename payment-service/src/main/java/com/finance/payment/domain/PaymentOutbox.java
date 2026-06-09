@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+/** Entità outbox transazionale per la pubblicazione affidabile di eventi su Kafka. */
 @Entity
 @Table(name = "payment_outbox")
 @Getter
@@ -61,6 +62,7 @@ public class PaymentOutbox {
     @Column(name = "processed_at")
     private Instant processedAt;
 
+    /** Crea una nuova voce outbox in stato PENDING per l'evento indicato. */
     public static PaymentOutbox of(
             UUID paymentId,
             String eventType,

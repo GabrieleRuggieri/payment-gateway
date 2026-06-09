@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Listens for {@link PaymentEventType#PAYMENT_CAPTURED} to settle and handles settlement failure compensation.
+ * Ascolta {@link PaymentEventType#PAYMENT_CAPTURED} per il settlement e gestisce la compensazione in caso di fallimento.
  */
 @Component
 @RequiredArgsConstructor
@@ -34,6 +34,7 @@ public class SettlementEventConsumer {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
+    /** Elabora eventi di capture e fallimento settlement con deduplicazione saga. */
     @KafkaListener(
             topics = TopicConstants.PAYMENT_EVENTS,
             groupId = CONSUMER_GROUP,

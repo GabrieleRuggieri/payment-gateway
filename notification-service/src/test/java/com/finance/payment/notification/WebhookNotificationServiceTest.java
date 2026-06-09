@@ -24,6 +24,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Verifica {@link WebhookNotificationService}: consegna webhook per eventi notificabili,
+ * deduplicazione tramite Redis e ignorare eventi non destinati alla notifica.
+ */
 @ExtendWith(MockitoExtension.class)
 class WebhookNotificationServiceTest {
 

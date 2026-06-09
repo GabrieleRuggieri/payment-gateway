@@ -10,6 +10,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Verifica le transizioni di stato del dominio {@link Payment}, il rifiuto di transizioni non valide,
+ * la validazione degli importi negativi e la normalizzazione a quattro decimali.
+ */
 class PaymentTest {
 
     @Test

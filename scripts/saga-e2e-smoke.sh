@@ -1,5 +1,5 @@
 #!/bin/sh
-# End-to-end saga smoke test against a running Docker Compose stack.
+# Smoke test end-to-end della saga contro uno stack Docker Compose già avviato.
 set -eu
 
 API_BASE="${API_BASE:-http://localhost:8080}"

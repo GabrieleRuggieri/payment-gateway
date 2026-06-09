@@ -18,10 +18,10 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * Guarantees exactly-once payment initiation per idempotency key within the configured TTL.
+ * Garantisce un solo avvio pagamento per chiave di idempotenza entro la finestra TTL configurata.
  * <p>
- * Storage: PostgreSQL ({@code idempotency_keys}) — durable and consistent with payment rows.
- * Redis is intentionally not used here: losing a dedup key could cause double charge.
+ * Persistenza: PostgreSQL ({@code idempotency_keys}) — coerente e durabile rispetto alle righe pagamento.
+ * Redis non è usato qui: perdere una chiave di dedup potrebbe causare un addebito doppio.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,8 +35,8 @@ public class IdempotencyService {
     private long ttlHours;
 
     /**
-     * Runs {@code operation} once per key inside the caller's transaction boundary.
-     * Concurrent requests with the same key block on {@code SELECT FOR UPDATE} until the first completes.
+     * Esegue {@code operation} una sola volta per chiave nel contesto transazionale del chiamante.
+     * Richieste concorrenti con la stessa chiave attendono su {@code SELECT FOR UPDATE}.
      */
     @Transactional
     public IdempotentResult<PaymentResponse> executeIdempotent(String key, Supplier<PaymentResponse> operation) {

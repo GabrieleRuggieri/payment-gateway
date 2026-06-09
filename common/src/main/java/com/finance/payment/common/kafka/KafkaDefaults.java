@@ -1,15 +1,15 @@
 package com.finance.payment.common.kafka;
 
 /**
- * Shared Kafka tuning for saga/outbox workloads.
- * Bootstrap servers are profile-specific (localhost vs docker internal listener).
+ * Parametri Kafka condivisi per carichi saga/outbox.
+ * I bootstrap server dipendono dal profilo (localhost vs listener interno Docker).
  */
 public final class KafkaDefaults {
 
-    /** Host machine → Docker mapped port (PLAINTEXT_HOST listener). */
+    /** Host locale → porta mappata Docker (listener PLAINTEXT_HOST). */
     public static final String BOOTSTRAP_LOCAL = "localhost:9092";
 
-    /** Container-to-container on Docker network (PLAINTEXT internal listener). */
+    /** Comunicazione container-to-container sulla rete Docker (listener PLAINTEXT interno). */
     public static final String BOOTSTRAP_DOCKER = "kafka:29092";
 
     public static final int PAYMENT_EVENTS_PARTITIONS = 6;

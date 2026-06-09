@@ -1,15 +1,21 @@
+/**
+ * Flowchart wireframe della saga con evidenziazione step per stato pagamento.
+ */
 import { PaymentStatus } from '../../types';
 
+/** Stato pagamento corrente per calcolare opacità degli step. */
 interface SagaFlowArtProps {
   status: PaymentStatus | null;
 }
 
+/** Indice dello step saga attivo; -1 per fallimento o assenza stato. */
 function stepLevel(status: PaymentStatus | null): number {
   if (!status || status === 'FAILED' || status === 'REFUNDED') return -1;
   const order: PaymentStatus[] = ['INITIATED', 'AUTHORIZED', 'CAPTURED', 'SETTLED'];
   return order.indexOf(status);
 }
 
+/** Opacità di un box subtask/agent in base allo stato corrente. */
 function boxTone(status: PaymentStatus | null, index: number): number {
   const level = stepLevel(status);
   if (level < 0) return 0.22;
@@ -20,7 +26,7 @@ function boxTone(status: PaymentStatus | null, index: number): number {
   return 0.22;
 }
 
-/** Minimal flowchart wireframe — matches Configure / Ship style. */
+/** Flowchart wireframe minimale — coerente con stile Configure/Ship. */
 export function SagaFlowArt({ status }: SagaFlowArtProps) {
   const mergedActive = status === 'SETTLED';
   const mergedFail = status === 'FAILED' || status === 'REFUNDED';
@@ -30,7 +36,7 @@ export function SagaFlowArt({ status }: SagaFlowArtProps) {
     <svg className="bento-art__svg" viewBox="0 0 280 160" fill="none" aria-hidden>
       <rect x="16" y="10" width="248" height="140" rx="16" stroke="currentColor" strokeWidth="1.2" opacity="0.12" />
 
-      {/* Main task */}
+      {/* Task principale */}
       <rect x="100" y="22" width="80" height="22" rx="8" stroke="currentColor" strokeWidth="1.2" opacity="0.35" />
       <rect x="112" y="30" width="56" height="6" rx="3" fill="currentColor" opacity="0.15" />
 
@@ -38,7 +44,7 @@ export function SagaFlowArt({ status }: SagaFlowArtProps) {
       <path d="M52 54h176" stroke="currentColor" strokeWidth="1.2" opacity="0.14" />
       <path d="M52 54v8M140 54v8M228 54v8" stroke="currentColor" strokeWidth="1.2" opacity="0.18" />
 
-      {/* Subtasks */}
+      {/* Sotto-task */}
       {subtaskXs.map((x, i) => (
         <g key={`sub-${x}`} opacity={boxTone(status, i)}>
           <rect x={x} y="62" width="56" height="20" rx="7" stroke="currentColor" strokeWidth="1.2" />
@@ -48,7 +54,7 @@ export function SagaFlowArt({ status }: SagaFlowArtProps) {
 
       <path d="M64 82v8M140 82v8M216 82v8" stroke="currentColor" strokeWidth="1.2" opacity="0.18" />
 
-      {/* Agents */}
+      {/* Agent */}
       {subtaskXs.map((x, i) => (
         <g key={`agent-${x}`} opacity={boxTone(status, i)}>
           <rect x={x} y="90" width="56" height="22" rx="7" stroke="currentColor" strokeWidth="1.2" />
@@ -60,7 +66,7 @@ export function SagaFlowArt({ status }: SagaFlowArtProps) {
       <path d="M64 118h152" stroke="currentColor" strokeWidth="1.2" opacity="0.12" />
       <path d="M140 118v8" stroke="currentColor" strokeWidth="1.2" opacity="0.18" />
 
-      {/* Merged result */}
+      {/* Risultato aggregato */}
       <rect
         x="72"
         y="126"

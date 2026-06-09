@@ -12,8 +12,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link SettlementService}.
- * Covers success path, threshold-triggered failure and refund compensation.
+ * Test unitari per {@link SettlementService}: percorso di successo, fallimento oltre soglia
+ * e generazione dei riferimenti di settlement e refund.
  */
 class SettlementServiceTest {
 
@@ -24,7 +24,7 @@ class SettlementServiceTest {
         service = new SettlementService();
     }
 
-    // ── settle() ──────────────────────────────────────────────────────────────
+    // ── settle() ─────────────────────────────────────────────────────────────
 
     @ParameterizedTest(name = "settle succeeds for amount {0}")
     @ValueSource(strings = {"1.00", "100.00", "4999.99", "4999.98"})
@@ -62,7 +62,7 @@ class SettlementServiceTest {
         assertThat(result.getSettlementReference()).isEqualTo(expectedPrefix);
     }
 
-    // ── refund() ─────────────────────────────────────────────────────────────
+    // ── refund() ────────────────────────────────────────────────────────────
 
     @Test
     void shouldRefundSuccessfully() {

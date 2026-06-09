@@ -10,7 +10,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link CaptureService}.
+ * Test unitari per {@link CaptureService}: capture riuscita, formato del riferimento di capture
+ * e validazione degli importi non positivi.
  */
 class CaptureServiceTest {
 

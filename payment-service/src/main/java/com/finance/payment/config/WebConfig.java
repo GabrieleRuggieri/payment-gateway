@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/** Configurazione web MVC, inclusi i mapping CORS per il frontend. */
 @Configuration
 public class WebConfig {
 

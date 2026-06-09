@@ -24,6 +24,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Verifica il comportamento della saga in {@link PaymentService}: mantiene lo stato CAPTURED
+ * dopo un {@code SettlementFailed} e transita a REFUNDED solo dopo la compensazione.
+ */
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceSagaTest {
 

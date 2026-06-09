@@ -1,3 +1,6 @@
+/**
+ * Sezione a quattro card che illustrano capacità della piattaforma.
+ */
 import {
   IntegrationsArt,
   PaymentFlowArt,
@@ -40,7 +43,7 @@ const PLATFORM_CARDS = [
   },
 ];
 
-/** Platform strip — four illustrated cards with wireframe diagrams. */
+/** Striscia piattaforma — quattro card illustrate con diagrammi wireframe. */
 export function PlatformStrip() {
   return (
     <section className="platform-strip">

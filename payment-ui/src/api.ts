@@ -1,11 +1,13 @@
+/**
+ * Client HTTP per le API di pagamento.
+ * Le richieste usano same-origin in Docker/dev: /api/* con BFF che inietta X-Api-Key lato server.
+ */
 import { PaymentResponse, TERMINAL_STATUSES } from './types';
 
-/**
- * Same-origin in Docker/dev: requests go to /api/* and the BFF (nginx or Vite proxy)
- * injects X-Api-Key server-side. The browser never holds the merchant API key.
- */
+/** Base URL API; stringa vuota = same-origin (BFF nginx o proxy Vite). */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
+/** Esito normalizzato di una chiamata fetch verso payment-service. */
 export interface ApiCallResult {
   ok: boolean;
   status: number;
@@ -14,6 +16,7 @@ export interface ApiCallResult {
   error?: string;
 }
 
+/** Parametri per POST /api/v1/payments. */
 export interface CreatePaymentParams {
   merchantId: string;
   amount: string;
@@ -23,6 +26,7 @@ export interface CreatePaymentParams {
   skipIdempotencyHeader?: boolean;
 }
 
+/** Crea un pagamento e restituisce l'esito HTTP senza lanciare eccezioni di rete. */
 export async function createPayment(params: CreatePaymentParams): Promise<ApiCallResult> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -57,6 +61,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<ApiCal
   }
 }
 
+/** Recupera un pagamento per ID. */
 export async function getPayment(paymentId: string): Promise<ApiCallResult> {
   try {
     const res = await fetch(`${API_BASE}/api/v1/payments/${paymentId}`);
@@ -73,6 +78,7 @@ export async function getPayment(paymentId: string): Promise<ApiCallResult> {
   }
 }
 
+/** Effettua polling su GET fino a uno stato terminale della saga o timeout. */
 export async function pollUntilTerminal(
   paymentId: string,
   maxAttempts = 30,
@@ -90,8 +96,10 @@ export async function pollUntilTerminal(
   return null;
 }
 
+/** Genera una nuova chiave di idempotenza (UUID v4). */
 export function newIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
+/** Merchant ID demo predefinito per sviluppo e test. */
 export const DEFAULT_MERCHANT_ID = '550e8400-e29b-41d4-a716-446655440000';

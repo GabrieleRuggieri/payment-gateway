@@ -28,12 +28,12 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * REST API for merchants to initiate payments and poll status.
+ * API REST per i merchant: avvio pagamenti e consultazione dello stato.
  */
 @RestController
 @RequestMapping("/api/v1/payments")
 @RequiredArgsConstructor
-@Tag(name = "Payments", description = "Payment initiation, idempotency and status queries")
+@Tag(name = "Pagamenti", description = "Avvio pagamenti, idempotenza e consultazione stato")
 public class PaymentController {
 
     private static final Pattern IDEMPOTENCY_KEY_PATTERN =
@@ -42,28 +42,28 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     /**
-     * Creates a new payment. Supply a unique {@code Idempotency-Key} per logical payment attempt.
+     * Crea un nuovo pagamento. Fornire una {@code Idempotency-Key} univoca per ogni tentativo logico.
      */
     @PostMapping
     @Operation(
-            summary = "Create payment",
+            summary = "Crea pagamento",
             description = """
-                    Initiates a payment saga. Requires header `Idempotency-Key` (UUID v4 recommended).
-                    Retries with the same key return the original response with `Idempotent-Replayed: true`.
+                    Avvia la saga di pagamento. Richiede l'header `Idempotency-Key` (consigliato UUID v4).
+                    I retry con la stessa chiave restituiscono la risposta originale con `Idempotent-Replayed: true`.
                     """
     )
     @ApiResponse(
             responseCode = "200",
-            description = "Payment created or replayed",
+            description = "Pagamento creato o risposta idempotente ripetuta",
             content = @Content(schema = @Schema(implementation = PaymentResponse.class)),
             headers = @Header(
                     name = TopicConstants.HEADER_IDEMPOTENT_REPLAYED,
-                    description = "Set to true on idempotent replay",
+                    description = "Impostato a true in caso di replay idempotente",
                     schema = @Schema(type = "string")
             )
     )
     public ResponseEntity<PaymentResponse> createPayment(
-            @Parameter(description = "Client-generated unique key (min 8 chars)", required = true)
+            @Parameter(description = "Chiave univoca generata dal client (min 8 caratteri)", required = true)
             @RequestHeader(value = TopicConstants.HEADER_IDEMPOTENCY_KEY) String idempotencyKey,
             @Valid @RequestBody CreatePaymentRequest request) {
 
@@ -80,12 +80,12 @@ public class PaymentController {
     }
 
     /**
-     * Returns the current aggregate state — useful for frontend polling during the saga.
+     * Restituisce lo stato corrente dell'aggregato — utile per il polling del frontend durante la saga.
      */
     @GetMapping("/{paymentId}")
-    @Operation(summary = "Get payment by id", description = "Poll payment status during saga execution")
+    @Operation(summary = "Recupera pagamento per id", description = "Polling dello stato durante l'esecuzione della saga")
     public PaymentResponse getPayment(
-            @Parameter(description = "Payment UUID") @PathVariable UUID paymentId) {
+            @Parameter(description = "UUID del pagamento") @PathVariable UUID paymentId) {
         return paymentService.getPayment(paymentId);
     }
 

@@ -1,3 +1,6 @@
+/**
+ * Componente radice: gestisce form pagamento, polling saga e integrazione test collection.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { createPayment, getPayment, newIdempotencyKey, pollUntilTerminal } from './api';
 import { Hero } from './components/Hero';
@@ -10,6 +13,7 @@ import { PlatformStrip } from './components/PlatformStrip';
 import { PaymentResponse, TERMINAL_STATUSES } from './types';
 import './index.css';
 
+/** Pagina principale con composer, bento grid e collection API. */
 export default function App() {
   const [merchantId, setMerchantId] = useState<string>('550e8400-e29b-41d4-a716-446655440000');
   const [amount, setAmount] = useState('99.99');

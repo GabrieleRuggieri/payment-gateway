@@ -1,4 +1,9 @@
-/** Mirrors backend PaymentStatus enum. */
+/**
+ * Tipi condivisi e costanti per stati pagamento e timeline saga.
+ * Allineati all'enum PaymentStatus del backend.
+ */
+
+/** Stati possibili di un pagamento nel ciclo di vita della saga. */
 export type PaymentStatus =
   | 'INITIATED'
   | 'AUTHORIZED'
@@ -7,7 +12,7 @@ export type PaymentStatus =
   | 'FAILED'
   | 'REFUNDED';
 
-/** API response from POST/GET /api/v1/payments. */
+/** Risposta API da POST/GET /api/v1/payments. */
 export interface PaymentResponse {
   id: string;
   merchantId: string;
@@ -19,7 +24,7 @@ export interface PaymentResponse {
   updatedAt: string;
 }
 
-/** Ordered saga milestones for the timeline UI. */
+/** Milestone ordinate della saga per la timeline UI. */
 export const SAGA_STEPS: { status: PaymentStatus; label: string; desc: string }[] = [
   { status: 'INITIATED', label: 'Initiated', desc: 'Payment created & outbox event queued' },
   { status: 'AUTHORIZED', label: 'Authorized', desc: 'Funds reserved with processor' },
@@ -27,4 +32,5 @@ export const SAGA_STEPS: { status: PaymentStatus; label: string; desc: string }[
   { status: 'SETTLED', label: 'Settled', desc: 'Funds transferred to merchant' },
 ];
 
+/** Stati terminali oltre i quali il polling può fermarsi. */
 export const TERMINAL_STATUSES: PaymentStatus[] = ['SETTLED', 'FAILED', 'REFUNDED'];

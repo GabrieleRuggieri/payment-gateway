@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/** Consumer Kafka che gestisce gli eventi di autorizzazione e compensazione della saga. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -31,6 +32,7 @@ public class AuthorizationEventConsumer {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
+    /** Elabora gli eventi saga rilevanti per l'autorizzazione e la compensazione. */
     @KafkaListener(
             topics = TopicConstants.PAYMENT_EVENTS,
             groupId = CONSUMER_GROUP,

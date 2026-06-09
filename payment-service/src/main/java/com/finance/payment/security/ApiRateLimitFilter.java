@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
 
+/** Filtro che applica il rate limiting per merchant tramite Redis. */
 @RequiredArgsConstructor
 public class ApiRateLimitFilter extends OncePerRequestFilter {
 

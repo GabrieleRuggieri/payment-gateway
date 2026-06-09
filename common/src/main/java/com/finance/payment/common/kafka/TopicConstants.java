@@ -1,8 +1,6 @@
 package com.finance.payment.common.kafka;
 
-/**
- * Kafka topic and header constants shared across services.
- */
+/** Costanti di topic e header Kafka condivise tra i servizi. */
 public final class TopicConstants {
 
     public static final String PAYMENT_EVENTS = "payment.events";

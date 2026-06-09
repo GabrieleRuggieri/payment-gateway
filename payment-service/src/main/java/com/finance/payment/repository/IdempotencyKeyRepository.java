@@ -12,10 +12,10 @@ import java.time.Instant;
 import java.util.Optional;
 
 /**
- * Idempotency key persistence in PostgreSQL (durable, ACID).
+ * Persistenza delle chiavi di idempotenza su PostgreSQL (durabile, ACID).
  * <p>
- * {@link #findByKeyWithLock} serializes concurrent requests; unique PK on {@code key}
- * plus {@link com.finance.payment.service.IdempotencyService} handles insert races.
+ * {@link #findByKeyWithLock} serializza le richieste concorrenti; la PK univoca su {@code key}
+ * insieme a {@link com.finance.payment.service.IdempotencyService} gestisce le race in inserimento.
  */
 public interface IdempotencyKeyRepository extends JpaRepository<IdempotencyRecord, String> {
 

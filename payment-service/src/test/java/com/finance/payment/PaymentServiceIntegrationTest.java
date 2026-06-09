@@ -26,7 +26,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for payment creation, outbox co-commitment and idempotency (Testcontainers).
+ * Test di integrazione per la creazione dei pagamenti, il co-commit dell'outbox nella stessa transazione
+ * e il comportamento idempotente delle richieste duplicate (Testcontainers).
  */
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
@@ -34,14 +35,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PaymentServiceIntegrationTest {
 
     @Container
-    @SuppressWarnings("resource") // closed by the Testcontainers JUnit extension
+    @SuppressWarnings("resource") // chiuso dall'estensione JUnit di Testcontainers
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
             .withDatabaseName("payments_test")
             .withUsername("test")
             .withPassword("test");
 
     @Container
-    @SuppressWarnings("resource") // closed by the Testcontainers JUnit extension
+    @SuppressWarnings("resource") // chiuso dall'estensione JUnit di Testcontainers
     static ConfluentKafkaContainer kafka = new ConfluentKafkaContainer(
             DockerImageName.parse("confluentinc/cp-kafka:7.8.0")
     );

@@ -25,8 +25,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for {@link SettlementEventConsumer}.
- * Covers the happy path, compensation (SETTLEMENT_FAILED → PAYMENT_REFUNDED), and dedup.
+ * Test unitari per {@link SettlementEventConsumer}: percorso felice, compensazione
+ * ({@code SETTLEMENT_FAILED} → {@code PAYMENT_REFUNDED}), deduplicazione e routing degli eventi.
  */
 @ExtendWith(MockitoExtension.class)
 class SettlementEventConsumerTest {
@@ -46,7 +46,7 @@ class SettlementEventConsumerTest {
         consumer = new SettlementEventConsumer(settlementService, dedupService, kafkaTemplate, objectMapper);
     }
 
-    // ── Happy path ────────────────────────────────────────────────────────────
+    // ── Percorso felice ───────────────────────────────────────────────────────
 
     @Test
     void shouldSettleOnPaymentCaptured() {
@@ -84,7 +84,7 @@ class SettlementEventConsumerTest {
         assertThat(msgCaptor.getValue()).contains("SettlementFailed");
     }
 
-    // ── Compensation path ─────────────────────────────────────────────────────
+    // ── Percorso di compensazione ─────────────────────────────────────────────
 
     @Test
     void shouldRefundOnSettlementFailed() {
@@ -105,7 +105,7 @@ class SettlementEventConsumerTest {
         assertThat(msgCaptor.getValue()).contains("PaymentRefunded");
     }
 
-    // ── Dedup and routing ─────────────────────────────────────────────────────
+    // ── Deduplicazione e routing ──────────────────────────────────────────────
 
     @Test
     void shouldSkipDuplicateEvent() {
@@ -144,7 +144,7 @@ class SettlementEventConsumerTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Utility ───────────────────────────────────────────────────────────────
 
     private Map<String, Object> buildCapturePayload(UUID paymentId, String amount, String currency) {
         Map<String, Object> p = new HashMap<>();

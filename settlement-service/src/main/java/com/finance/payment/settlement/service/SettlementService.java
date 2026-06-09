@@ -9,14 +9,14 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Settlement saga step: transfer captured funds to the merchant (mocked acquirer API).
+ * Step saga di settlement: trasferisce i fondi catturati al merchant (API acquirer mockata).
  *
- * <p>Failure thresholds (demo):
+ * <p>Soglie di fallimento (demo):
  * <ul>
- *   <li>amount &gt; 9 999.99 — authorization already fails upstream; settlement never reached</li>
- *   <li>amount &gt; 4 999.99 — settlement fails → triggers {@code SETTLEMENT_FAILED} compensation
- *       (capture void + refund), exercising the full compensation path</li>
- *   <li>amount ≤ 4 999.99 — settlement succeeds</li>
+ *   <li>importo &gt; 9 999,99 — l'autorizzazione fallisce già upstream; il settlement non viene raggiunto</li>
+ *   <li>importo &gt; 4 999,99 — il settlement fallisce → attiva la compensazione {@code SETTLEMENT_FAILED}
+ *       (void capture + rimborso), esercitando l'intero percorso di compensazione</li>
+ *   <li>importo ≤ 4 999,99 — settlement riuscito</li>
  * </ul>
  */
 @Service
@@ -26,9 +26,9 @@ public class SettlementService {
     private static final BigDecimal SETTLEMENT_FAIL_THRESHOLD = new BigDecimal("4999.99");
 
     /**
-     * Settles captured funds to the merchant account.
-     * Returns a failure result for amounts above {@value #SETTLEMENT_FAIL_THRESHOLD} to exercise
-     * the {@code SETTLEMENT_FAILED → PAYMENT_REFUNDED} compensation branch.
+     * Regola i fondi catturati sul conto merchant.
+     * Restituisce un esito negativo per importi superiori a {@value #SETTLEMENT_FAIL_THRESHOLD}
+     * per esercitare il ramo di compensazione {@code SETTLEMENT_FAILED → PAYMENT_REFUNDED}.
      */
     public SettlementResult settle(UUID paymentId, UUID merchantId, BigDecimal amount, String currency) {
         log.info("Settling payment {} merchant {} amount {} {}", paymentId, merchantId, amount, currency);
@@ -41,15 +41,16 @@ public class SettlementService {
     }
 
     /**
-     * Compensation: refund the customer when settlement fails after a successful capture.
+     * Compensazione: rimborsa il cliente quando il settlement fallisce dopo una capture riuscita.
      *
-     * @return refund reference for downstream event publishing
+     * @return riferimento rimborso per la pubblicazione dell'evento downstream
      */
     public RefundResult refund(UUID paymentId, BigDecimal amount, String currency) {
         log.info("Refunding payment {} amount {} {}", paymentId, amount, currency);
         return RefundResult.success("REF-" + paymentId.toString().substring(0, 8).toUpperCase());
     }
 
+    /** Esito di un'operazione di settlement. */
     @Value
     @Builder
     public static class SettlementResult {
@@ -66,6 +67,7 @@ public class SettlementService {
         }
     }
 
+    /** Esito di un'operazione di rimborso. */
     @Value
     @Builder
     public static class RefundResult {

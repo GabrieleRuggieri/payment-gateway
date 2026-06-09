@@ -4,12 +4,13 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/** Proprietà di configurazione per l'autenticazione API del payment-service. */
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "payment.security")
 public class PaymentSecurityProperties {
 
-    /** When false, API key checks are skipped (integration tests only). */
+    /** Se false, i controlli API key sono disabilitati (solo test di integrazione). */
     private boolean enabled = true;
 
     private String apiKeyHeader = "X-Api-Key";

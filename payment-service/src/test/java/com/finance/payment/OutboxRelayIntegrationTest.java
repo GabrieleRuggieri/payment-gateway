@@ -27,6 +27,10 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+/**
+ * Test di integrazione che verifica la pubblicazione su Kafka degli eventi outbox in stato PENDING
+ * tramite {@link OutboxRelayService}.
+ */
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
 @Tag("integration")

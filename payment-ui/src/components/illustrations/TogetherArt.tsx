@@ -1,4 +1,4 @@
-/** Overlapping avatar wireframes — orange bento tile, Ship / Configure style. */
+/** Wireframe avatar sovrapposti — tile bento arancione, stile Ship/Configure. */
 export function TogetherArt() {
   const avatars = [
     { cx: 108, cy: 78 },
@@ -24,7 +24,7 @@ export function TogetherArt() {
         </g>
       ))}
 
-      {/* Chat bubble accent */}
+      {/* Accento bolla chat */}
       <rect x="36" y="28" width="64" height="28" rx="10" stroke="currentColor" strokeWidth="1.2" opacity="0.4" />
       <path d="M48 56 L54 62 L58 56" stroke="currentColor" strokeWidth="1" opacity="0.35" />
       <path d="M48 40h40M48 48h28" stroke="currentColor" strokeWidth="1" opacity="0.3" />

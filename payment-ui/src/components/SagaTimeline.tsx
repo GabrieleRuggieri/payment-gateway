@@ -1,12 +1,16 @@
+/**
+ * Timeline visuale degli step della saga con evidenziazione stato corrente.
+ */
 import { PaymentStatus } from '../types';
 import { SagaFlowArt } from './illustrations/SagaFlowArt';
 
+/** Stato pagamento corrente e flag polling attivo. */
 interface SagaTimelineProps {
   status: PaymentStatus | null;
   polling: boolean;
 }
 
-/** Gray bento tile — wireframe saga flowchart with live state highlights. */
+/** Tile bento grigia — flowchart saga wireframe con highlight stato live. */
 export function SagaTimeline({ status, polling }: SagaTimelineProps) {
   return (
     <section className="bento bento--gray" aria-label="Saga pipeline status">

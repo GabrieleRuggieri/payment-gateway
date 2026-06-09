@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/** Consumer Kafka che esegue la capture al ricevimento di {@code PAYMENT_AUTHORIZED}. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -31,6 +32,7 @@ public class CaptureEventConsumer {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
+    /** Elabora gli eventi di autorizzazione e pubblica l'esito della capture. */
     @KafkaListener(
             topics = TopicConstants.PAYMENT_EVENTS,
             groupId = CONSUMER_GROUP,

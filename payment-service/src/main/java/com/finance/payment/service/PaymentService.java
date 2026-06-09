@@ -24,9 +24,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Orchestrates the payment aggregate: initiation, saga state transitions, audit trail and outbox writes.
+ * Orchestra l'aggregato pagamento: avvio, transizioni di stato saga, audit trail e scritture outbox.
  * <p>
- * Every state change that must be published writes to {@code payment_outbox} in the same transaction (outbox pattern).
+ * Ogni cambio di stato da pubblicare scrive su {@code payment_outbox} nella stessa transazione (pattern outbox).
  */
 @Service
 @RequiredArgsConstructor
@@ -42,7 +42,7 @@ public class PaymentService {
     private final MerchantAccessGuard merchantAccessGuard;
 
     /**
-     * Creates a payment idempotently and enqueues a {@link PaymentEventType#PAYMENT_INITIATED} outbox event.
+     * Crea un pagamento in modo idempotente e accoda un evento outbox {@link PaymentEventType#PAYMENT_INITIATED}.
      */
     @Transactional
     public IdempotentResult<PaymentResponse> initiatePayment(CreatePaymentRequest request, String idempotencyKey) {
@@ -67,6 +67,7 @@ public class PaymentService {
         });
     }
 
+    /** Aggiorna l'aggregato dopo autorizzazione riuscita. */
     @Transactional
     public void handleAuthorized(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -78,6 +79,7 @@ public class PaymentService {
         log.info("Payment authorized: id={}", paymentId);
     }
 
+    /** Segna il pagamento come fallito in fase di autorizzazione. */
     @Transactional
     public void handleAuthorizationFailed(UUID paymentId, String reason) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -88,6 +90,7 @@ public class PaymentService {
         log.warn("Authorization failed for payment {}: {}", paymentId, reason);
     }
 
+    /** Aggiorna l'aggregato dopo capture riuscita. */
     @Transactional
     public void handleCaptured(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -99,6 +102,7 @@ public class PaymentService {
         log.info("Payment captured: id={}", paymentId);
     }
 
+    /** Segna il pagamento come fallito in fase di capture. */
     @Transactional
     public void handleCaptureFailed(UUID paymentId, String reason) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -109,6 +113,7 @@ public class PaymentService {
         log.warn("Capture failed for payment {}: {}", paymentId, reason);
     }
 
+    /** Aggiorna l'aggregato dopo settlement riuscito. */
     @Transactional
     public void handleSettled(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -120,6 +125,7 @@ public class PaymentService {
         log.info("Payment settled: id={}", paymentId);
     }
 
+    /** Registra un fallimento di settlement mantenendo lo stato CAPTURED fino al rimborso. */
     @Transactional
     public void handleSettlementFailed(UUID paymentId, String reason) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -134,6 +140,7 @@ public class PaymentService {
         log.warn("Settlement failed for payment {}: {}", paymentId, reason);
     }
 
+    /** Aggiorna l'aggregato dopo rimborso completato. */
     @Transactional
     public void handleRefunded(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -149,6 +156,7 @@ public class PaymentService {
         log.info("Payment refunded: id={}", paymentId);
     }
 
+    /** Recupera un pagamento verificando l'appartenenza al merchant autenticato. */
     public PaymentResponse getPayment(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
         merchantAccessGuard.assertOwns(payment);

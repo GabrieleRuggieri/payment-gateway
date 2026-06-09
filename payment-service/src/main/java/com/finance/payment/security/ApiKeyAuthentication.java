@@ -3,6 +3,7 @@ package com.finance.payment.security;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
 
+/** Token di autenticazione Spring Security basato su chiave API merchant. */
 public class ApiKeyAuthentication extends AbstractAuthenticationToken {
 
     private final MerchantPrincipal principal;

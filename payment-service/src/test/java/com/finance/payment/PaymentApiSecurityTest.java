@@ -22,6 +22,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Test di integrazione per la sicurezza dell'API: health actuator senza chiave API, rifiuto delle richieste
+ * non autenticate, blocco per merchant non corrispondente e accettazione con credenziali valide.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
@@ -56,7 +60,7 @@ class PaymentApiSecurityTest {
 
     @Test
     void shouldAllowActuatorHealthWithoutApiKey() throws Exception {
-        // Probe must not require X-Api-Key (Docker healthcheck); status may be 200 or 503 without Redis
+        // La sonda non deve richiedere X-Api-Key (healthcheck Docker); lo stato può essere 200 o 503 senza Redis
         int status = mockMvc.perform(get("/actuator/health"))
                 .andReturn()
                 .getResponse()
