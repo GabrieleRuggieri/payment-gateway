@@ -19,7 +19,7 @@
 10. [Docker Compose locale](#10-docker-compose-locale)
 11. [Sicurezza API](#11-sicurezza-api)
 12. [Operazioni](#12-operazioni)
-13. [Cosa dire al colloquio](#13-cosa-dire-al-colloquio)
+13. [Domande da colloquio](#13-domande-da-colloquio)
 
 ---
 
@@ -97,48 +97,40 @@ Non possiamo usare transazioni distribuite (2PC) su più microservizi — troppo
 ## 3. Architettura del sistema
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        CLIENT / MERCHANT                    │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ POST /payments  (+ Idempotency-Key header)
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    PAYMENT SERVICE                          │
-│                                                             │
-│  ┌─────────────┐   ┌──────────────┐   ┌─────────────────┐  │
-│  │  REST API   │──▶│  PaymentSvc  │──▶│  Outbox Writer  │  │
-│  └─────────────┘   └──────────────┘   └────────┬────────┘  │
-│                           │                     │           │
-│                    ┌──────▼──────┐       ┌──────▼──────┐   │
-│                    │  PostgreSQL │       │   Outbox    │   │
-│                    │  payments   │       │   table     │   │
-│                    └─────────────┘       └──────┬──────┘   │
-└──────────────────────────────────────────────────┼──────────┘
-                                                   │
-                           ┌───────────────────────▼──────┐
-                           │    OUTBOX RELAY (scheduler)  │
-                           └───────────────────────┬──────┘
-                                                   │ publish
-                                                   ▼
-                           ┌──────────────────────────────┐
-                           │          KAFKA               │
-                           │  topic: payment.events       │
-                           └──┬───────────────────┬───────┘
-                              │                   │
-               ┌──────────────▼──┐         ┌──────▼──────────────┐
-               │ AUTHORIZATION   │         │  NOTIFICATION       │
-               │ SERVICE         │         │  SERVICE            │
-               └──────────────┬──┘         └─────────────────────┘
-                              │ payment.authorized
-                              ▼
-               ┌──────────────────────────┐
-               │    CAPTURE SERVICE       │
-               └──────────────┬───────────┘
-                              │ payment.captured
-                              ▼
-               ┌──────────────────────────┐
-               │   SETTLEMENT SERVICE     │
-               └──────────────────────────┘
+┌──────────────────┐   /api/* (no API key in browser)   ┌────────────────────────┐
+│  Browser / demo  │ ─────────────────────────────────▶ │  PAYMENT-UI (BFF)      │
+│  localhost:3000  │                                    │  nginx (Docker) o      │
+└──────────────────┘                                    │  Vite proxy (dev)      │
+                                                        │  inietta X-Api-Key     │
+                                                        └───────────┬────────────┘
+                                                                    │ POST /api/v1/payments
+                                                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         PAYMENT SERVICE (:8080)                              │
+│  REST API · Idempotency · API key auth · Rate limit · Outbox Relay · Saga   │
+│       │                              │                    │                  │
+│  ┌────▼─────┐                  ┌─────▼─────┐       ┌──────▼──────┐          │
+│  │PostgreSQL│                  │   Redis   │       │   Outbox    │          │
+│  │ payments │                  │ rate limit│       │   table     │          │
+│  │ api keys │                  │           │       └──────┬──────┘          │
+│  └──────────┘                  └───────────┘              │ publish         │
+└────────────────────────────────────────────────────────────┼─────────────────┘
+                                                             ▼
+                           ┌──────────────────────────────────────────────┐
+                           │              KAFKA — payment.events          │
+                           └──┬────────────┬────────────┬──────────┬───────┘
+                              │            │            │          │
+               ┌──────────────▼──┐  ┌──────▼──────┐ ┌───▼────┐ ┌───▼────────────┐
+               │ AUTHORIZATION   │  │   CAPTURE   │ │SETTLE- │ │ NOTIFICATION   │
+               │ SERVICE         │  │   SERVICE   │ │ MENT   │ │ SERVICE        │
+               └──────────────┬──┘  └─────────────┘ └────────┘ └───┬────────────┘
+                              │ saga consumer (payment-service)    │ POST webhook
+                              └────────────────────────────────────┼──────────────┐
+                                                                   ▼              │
+                                                        ┌──────────────────┐      │
+                                                        │ WEBHOOK-RECEIVER │      │
+                                                        │ :8099 (demo sink)│      │
+                                                        └──────────────────┘      │
 ```
 
 ### Componenti
@@ -146,12 +138,15 @@ Non possiamo usare transazioni distribuite (2PC) su più microservizi — troppo
 
 | Componente            | Responsabilità                                           |
 | --------------------- | -------------------------------------------------------- |
-| Payment Service       | Ricezione, validazione, idempotency check, stato FSM     |
+| Payment UI (BFF)      | SPA React; proxy `/api/*` con `X-Api-Key` lato server    |
+| Payment Service       | REST API, idempotency, API key, FSM, outbox relay, saga  |
 | Authorization Service | Blocca i fondi tramite processore esterno (mockato)      |
 | Capture Service       | Addebita i fondi autorizzati                             |
 | Settlement Service    | Trasferisce i fondi al merchant                          |
-| Outbox Relay          | Legge la outbox table e pubblica su Kafka atomicamente   |
 | Notification Service  | Invia webhook HTTP al merchant per ogni cambio di stato  |
+| Webhook Receiver      | Sink demo locale — memorizza webhook in RAM (`GET` lista) |
+| Outbox Relay          | Legge la outbox table e pubblica su Kafka atomicamente   |
+| Common                | Eventi Kafka condivisi, dedup saga, auto-config listener |
 
 
 ---
@@ -233,6 +228,37 @@ CREATE TABLE idempotency_keys (
 CREATE INDEX idx_idempotency_expires ON idempotency_keys (expires_at);
 ```
 
+### Migrazioni aggiuntive (Flyway — eseguite da `payment-service`)
+
+```sql
+-- V2__create_saga_processed_events.sql
+-- Dedup atomica dei consumer saga (INSERT ON CONFLICT DO NOTHING nella stessa TX)
+CREATE TABLE saga_processed_events (
+    consumer_group  VARCHAR(255) NOT NULL,
+    payment_id      UUID NOT NULL,
+    event_type      VARCHAR(100) NOT NULL,
+    processed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (consumer_group, payment_id, event_type)
+);
+
+-- V3__create_merchant_api_keys.sql
+-- API key merchant: solo hash SHA-256, mai la key in chiaro
+CREATE TABLE merchant_api_keys (
+    api_key_hash VARCHAR(64) PRIMARY KEY,  -- V4 converte CHAR→VARCHAR su DB esistenti
+    merchant_id  UUID NOT NULL,
+    label        VARCHAR(100) NOT NULL,
+    active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+| Migration | Tabella | Scopo |
+|-----------|---------|-------|
+| V1 | `payments`, `payment_events`, `payment_outbox`, `idempotency_keys` | Core payment + outbox + idempotency |
+| V2 | `saga_processed_events` | Dedup consumer saga (PostgreSQL, ACID) |
+| V3 | `merchant_api_keys` | Autenticazione API key per merchant |
+| V4 | `merchant_api_keys.api_key_hash` | Allineamento tipo colonna a Hibernate (`VARCHAR`) |
+
 ---
 
 ## 5. Pattern implementativi core
@@ -310,37 +336,28 @@ PaymentCaptured
 
 ```
 payment-gateway/
-├── payment-service/
-│   ├── src/main/java/com/finance/payment/
-│   │   ├── api/
-│   │   │   ├── PaymentController.java
-│   │   │   ├── dto/
-│   │   │   │   ├── CreatePaymentRequest.java
-│   │   │   │   └── PaymentResponse.java
-│   │   │   └── filter/IdempotencyFilter.java
-│   │   ├── domain/
-│   │   │   ├── Payment.java
-│   │   │   ├── PaymentEvent.java
-│   │   │   ├── PaymentOutbox.java
-│   │   │   └── PaymentStatus.java
-│   │   ├── repository/
-│   │   │   ├── PaymentRepository.java
-│   │   │   ├── PaymentOutboxRepository.java
-│   │   │   └── IdempotencyKeyRepository.java
-│   │   ├── service/
-│   │   │   ├── PaymentService.java
-│   │   │   ├── IdempotencyService.java
-│   │   │   └── OutboxRelayService.java
-│   │   └── config/
-│   │       ├── KafkaConfig.java
-│   │       └── ResilienceConfig.java
-│   └── src/main/resources/
-│       ├── application.yml
-│       └── db/migration/
-│           └── V1__create_payments_schema.sql
-├── authorization-service/
-├── capture-service/
-├── settlement-service/
+├── common/                          # eventi Kafka, SagaEventDedupService, listener auto-config
+├── payment-service/                 # API REST, outbox relay, sicurezza, migrazioni Flyway
+│   ├── api/                         # PaymentController, DTO, RequestCorrelationFilter
+│   ├── domain/                      # Payment, Outbox, IdempotencyRecord
+│   ├── security/                    # ApiKeyAuthenticationFilter, rate limit, MerchantApiKey
+│   ├── service/                     # PaymentService, IdempotencyService, OutboxRelayService
+│   ├── kafka/                       # Saga consumer (aggiornamento stato payment)
+│   └── db/migration/                # V1–V4 (payments, saga dedup, api keys)
+├── authorization-service/           # step saga: authorize + void (compensazione)
+├── capture-service/                 # step saga: capture
+├── settlement-service/              # step saga: settle + refund (compensazione)
+├── notification-service/            # webhook HTTP al merchant (dedup Redis)
+├── webhook-receiver/                # sink demo per webhook (POST/GET in RAM)
+├── payment-ui/                      # React 19 + Vite; BFF nginx / proxy dev
+│   ├── nginx.conf.template          # inietta PAYMENT_API_KEY su /api/*
+│   ├── docker-entrypoint.sh
+│   └── src/                         # test collection Postman-style, saga flow UI
+├── scripts/
+│   ├── build-backend.sh
+│   ├── build-frontend.sh
+│   └── saga-e2e-smoke.sh
+├── .env.example
 └── docker-compose.yml
 ```
 
@@ -975,11 +992,11 @@ Ogni servizio saga ha test unitari che mockano `SagaEventDedupService` e i rispe
 
 | Tipo | Cosa verifica |
 |------|----------------|
-| `PaymentApiSecurityTest` | API key obbligatoria, merchant mismatch → 403 |
+| `PaymentApiSecurityTest` | `/actuator/health` pubblico, API key obbligatoria su `/api/**`, merchant mismatch → 403 |
 | `OutboxRelayIntegrationTest` | relay pubblica eventi PENDING su Kafka (Testcontainers) |
 | `WebhookNotificationServiceTest` | dedup Redis + POST webhook |
 | `WebhookReceiverControllerTest` | sink locale per le notifiche |
-| `payment-ui` Vitest | stati terminali saga + struttura test collection |
+| `payment-ui` Vitest | stati terminali saga, test collection, BFF senza API key nel client |
 | `scripts/saga-e2e-smoke.sh` | smoke end-to-end su stack Docker (CI) |
 
 **CI:** job `backend-integration` (Testcontainers con Docker) + `compose-smoke` (health + saga SETTLED).
@@ -1051,8 +1068,11 @@ docker compose exec postgres psql -U payments_user -d payments \
 # Visualizza Kafka UI
 open http://localhost:8090
 
-# Apri la demo UI (React/Vite, servita da Nginx)
+# Apri la demo UI (React/Vite, servita da Nginx — BFF inietta l'API key)
 open http://localhost:3000
+
+# Webhook ricevuti dal notification-service (dopo un pagamento)
+curl http://localhost:8099/webhooks/payments
 ```
 
 ### 10.1 Servizi e porte
@@ -1065,7 +1085,7 @@ open http://localhost:3000
 | `settlement-service`  | 8083       | Saga step — consumer only               |
 | `notification-service`| 8084       | Consumer — webhook HTTP al merchant     |
 | `webhook-receiver`    | 8099       | Sink locale per webhook demo + GET lista |
-| `payment-ui`          | 3000       | React + Vite, proxied via Nginx         |
+| `payment-ui`          | 3000       | React + Vite, BFF nginx (`/api/*` → payment-service) |
 | `kafka-ui`            | 8090       | Kafka topic browser                     |
 | `postgres`            | 5432       | Database condiviso (migrazioni Flyway via `payment-service`) |
 | `kafka`               | 9092       | KRaft single-node, listener host        |
@@ -1100,7 +1120,7 @@ Le API merchant (`/api/v1/payments`) sono protette da **API key** nell'header `X
 
 **BFF** = *Backend-for-Frontend*: un layer server tra SPA e API che tiene i segreti lato server. Qui è implementato come reverse proxy (nginx), non come microservizio separato.
 
-Actuator health, Prometheus e Swagger restano pubblici per healthcheck Docker e documentazione.
+Actuator health, Prometheus e Swagger restano pubblici: `ApiKeyAuthenticationFilter.shouldNotFilter()` li esclude dal controllo API key, così l'healthcheck Docker (`wget /actuator/health`) riceve HTTP 200.
 
 ---
 
@@ -1117,7 +1137,7 @@ Actuator health, Prometheus e Swagger restano pubblici per healthcheck Docker e 
 
 ---
 
-## 13. Domande
+## 13. Domande da colloquio
 
 ### Domanda: "Come eviti il double charge?"
 
@@ -1137,5 +1157,5 @@ Actuator health, Prometheus e Swagger restano pubblici per healthcheck Docker e 
 
 ### Domanda: "Come autentichi le API merchant?"
 
-> *"API key nell'header X-Api-Key, salvata come hash SHA-256 in PostgreSQL e legata a un merchantId. Ogni richiesta deve usare il merchant corretto; il GET su un pagamento verifica l'ownership. Rate limiting per merchant su Redis. Per la demo la key è nel seed Flyway; in produzione ruoterei le key e le terrei in un secrets manager."*
+> *"API key nell'header X-Api-Key, salvata come hash SHA-256 in PostgreSQL (`merchant_api_keys`) e legata a un merchantId. Ogni richiesta deve usare il merchant corretto; il GET su un pagamento verifica l'ownership. Rate limiting per merchant su Redis (120 req/min). Actuator e Swagger restano pubblici per probe e docs. Nel frontend non metto la key nel bundle: uso un BFF (nginx in Docker, Vite proxy in dev) che inietta `X-Api-Key` lato server da `PAYMENT_API_KEY`. In produzione ruoterei le key e le terrei in un secrets manager."*
 
