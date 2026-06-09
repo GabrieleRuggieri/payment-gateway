@@ -11,13 +11,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(PaymentSecurityProperties.class)
+@EnableConfigurationProperties({PaymentSecurityProperties.class, RateLimitProperties.class})
 public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            ApiKeyAuthenticationFilter apiKeyAuthenticationFilter) throws Exception {
+            ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+            ApiRateLimitFilter apiRateLimitFilter) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable())
@@ -34,7 +35,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
-                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(apiRateLimitFilter, ApiKeyAuthenticationFilter.class);
 
         return http.build();
     }
@@ -44,5 +46,12 @@ public class SecurityConfig {
             MerchantApiKeyRepository apiKeyRepository,
             PaymentSecurityProperties securityProperties) {
         return new ApiKeyAuthenticationFilter(apiKeyRepository, securityProperties);
+    }
+
+    @Bean
+    ApiRateLimitFilter apiRateLimitFilter(
+            org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
+            RateLimitProperties rateLimitProperties) {
+        return new ApiRateLimitFilter(redisTemplate, rateLimitProperties);
     }
 }

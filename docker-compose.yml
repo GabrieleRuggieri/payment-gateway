@@ -26,9 +26,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: payments
-      POSTGRES_USER: payments_user
-      POSTGRES_PASSWORD: payments_pass
+      POSTGRES_DB: ${POSTGRES_DB:-payments}
+      POSTGRES_USER: ${POSTGRES_USER:-payments_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
     ports:
       - "5432:5432"
     volumes:
@@ -112,9 +112,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payments
-      SPRING_DATASOURCE_USERNAME: payments_user
-      SPRING_DATASOURCE_PASSWORD: payments_pass
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-payments}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-payments_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
     healthcheck:
@@ -144,8 +144,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_DATASOURCE_USERNAME: payments_user
-      SPRING_DATASOURCE_PASSWORD: payments_pass
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-payments_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 10s
@@ -169,8 +169,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_DATASOURCE_USERNAME: payments_user
-      SPRING_DATASOURCE_PASSWORD: payments_pass
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-payments_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 10s
@@ -194,14 +194,30 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_DATASOURCE_USERNAME: payments_user
-      SPRING_DATASOURCE_PASSWORD: payments_pass
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-payments_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  webhook-receiver:
+    build:
+      context: .
+      dockerfile: webhook-receiver/Dockerfile
+    ports:
+      - "8099:8099"
+    depends_on:
+      build-backend:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8099/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
 
   notification-service:
     build:
@@ -216,11 +232,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      webhook-receiver:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      NOTIFICATION_WEBHOOK_DEFAULT_URL: http://webhook-receiver:8099/webhooks/payments
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 10s

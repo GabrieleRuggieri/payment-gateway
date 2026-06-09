@@ -26,6 +26,7 @@
         <module>capture-service</module>
         <module>settlement-service</module>
         <module>notification-service</module>
+        <module>webhook-receiver</module>
     </modules>
 
     <properties>

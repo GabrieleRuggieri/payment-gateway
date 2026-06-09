@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: webhook-receiver
+
+server:
+  port: 8099
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.finance.payment: INFO

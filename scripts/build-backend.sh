@@ -10,11 +10,12 @@ if [ -z "${COMPOSE_PROJECT_NAME:-}" ]; then
 fi
 export COMPOSE_PROJECT_NAME
 
-echo "Building backend images: payment-service authorization-service capture-service settlement-service notification-service"
+echo "Building backend images: payment-service authorization-service capture-service settlement-service notification-service webhook-receiver"
 docker compose -f "$ROOT/docker-compose.yml" build --parallel \
   payment-service \
   authorization-service \
   capture-service \
   settlement-service \
-  notification-service
+  notification-service \
+  webhook-receiver
 echo "Backend images ready."

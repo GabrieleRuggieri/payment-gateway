@@ -62,6 +62,13 @@ payment:
   security:
     enabled: true
     api-key-header: X-Api-Key
+  rate-limit:
+    enabled: true
+    requests-per-minute: 120
+  cleanup:
+    idempotency-cron: "0 15 * * * *"
+    saga-cron: "0 30 3 * * *"
+    saga-retention-days: 30
   outbox:
     relay:
       enabled: true
@@ -92,6 +99,8 @@ resilience4j:
         randomized-wait-factor: 0.3
 
 logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{correlationId:-}]"
   level:
     com.finance.payment: INFO
     org.springframework.kafka: WARN

@@ -60,6 +60,7 @@ class PaymentServiceIntegrationTest {
         registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
         registry.add("payment.outbox.relay.enabled", () -> "false");
         registry.add("payment.security.enabled", () -> "false");
+        registry.add("payment.rate-limit.enabled", () -> "false");
     }
 
     @Test
