@@ -150,15 +150,15 @@ export const TEST_SECTIONS: TestSection[] = [
       },
       {
         id: 'success-limit',
-        name: 'Processor limit (edge)',
+        name: 'Settlement limit (edge)',
         method: 'POST',
         path: '/api/v1/payments',
-        description: 'Body: €9999.00 EUR — highest amount the mock processor accepts.',
+        description: 'Body: €4999.99 EUR — highest amount the mock acquirer settles (authorization limit is €9999).',
         expected: 'HTTP 200 → SETTLED',
         run: async (ctx) => {
           const created = await createPayment({
             merchantId: ctx.merchantId,
-            amount: '9999.00',
+            amount: '4999.99',
             currency: 'EUR',
             idempotencyKey: crypto.randomUUID(),
           });
@@ -176,9 +176,37 @@ export const TEST_SECTIONS: TestSection[] = [
     id: 'failures',
     eyebrow: 'Saga failures',
     title: 'Failure scenarios',
-    description: 'Payments that fail during authorization after processor retries.',
+    description: 'Payments that fail during authorization or settlement.',
     variant: 'gray',
     tests: [
+      {
+        id: 'fail-settlement-limit',
+        name: 'Settlement limit exceeded',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body: €9999.00 EUR — passes authorization (≤9999) but mock acquirer rejects amounts above 4999.99.',
+        expected: 'HTTP 200 → saga fails → FAILED',
+        run: async (ctx) => {
+          const created = await createPayment({
+            merchantId: ctx.merchantId,
+            amount: '9999.00',
+            currency: 'EUR',
+            idempotencyKey: crypto.randomUUID(),
+            description: 'Test: settlement limit exceeded',
+          });
+          if (!created.ok) {
+            return { pass: false, httpStatus: created.status, message: 'Create failed', detail: formatBody(created) };
+          }
+          const final = await pollUntilTerminal(paymentFrom(created)!.id);
+          const pass = final?.status === 'FAILED';
+          return {
+            pass,
+            httpStatus: created.status,
+            message: pass ? 'FAILED as expected' : `Got ${final?.status ?? 'timeout'}`,
+            detail: final ? JSON.stringify(final, null, 2) : undefined,
+          };
+        },
+      },
       {
         id: 'fail-auth-limit',
         name: 'Authorization limit exceeded',
