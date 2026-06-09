@@ -8,6 +8,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import com.finance.payment.support.IntegrationTestProperties;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -45,15 +46,9 @@ class PaymentApiSecurityTest {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        IntegrationTestProperties.registerDatastores(registry, postgres, kafka);
         registry.add("payment.outbox.relay.enabled", () -> "false");
         registry.add("payment.security.enabled", () -> "true");
-        registry.add("payment.rate-limit.enabled", () -> "false");
-        registry.add("management.health.redis.enabled", () -> "false");
-        registry.add("management.health.kafka.enabled", () -> "false");
     }
 
     @Autowired

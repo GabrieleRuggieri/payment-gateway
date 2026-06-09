@@ -7,6 +7,7 @@ import com.finance.payment.domain.OutboxStatus;
 import com.finance.payment.repository.PaymentOutboxRepository;
 import com.finance.payment.repository.PaymentRepository;
 import com.finance.payment.service.PaymentService;
+import com.finance.payment.support.IntegrationTestProperties;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,13 +57,9 @@ class PaymentServiceIntegrationTest {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        IntegrationTestProperties.registerDatastores(registry, postgres, kafka);
         registry.add("payment.outbox.relay.enabled", () -> "false");
         registry.add("payment.security.enabled", () -> "false");
-        registry.add("payment.rate-limit.enabled", () -> "false");
     }
 
     @Test
