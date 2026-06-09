@@ -1023,7 +1023,7 @@ docker compose logs -f payment-service
 # Copia .env.example → .env per personalizzare password e API key (opzionale)
 cp .env.example .env
 
-# Crea un pagamento (richiede X-Api-Key)
+# Crea un pagamento via API diretta (curl / integrazioni server-side)
 curl -X POST http://localhost:8080/api/v1/payments \
   -H "Content-Type: application/json" \
   -H "X-Api-Key: pgw-demo-key-32chars-minimum!!" \
@@ -1096,6 +1096,9 @@ Le API merchant (`/api/v1/payments`) sono protette da **API key** nell'header `X
 | Ownership | `GET /payments/{id}` consentito solo al merchant proprietario |
 | Dev key | `pgw-demo-key-32chars-minimum!!` → merchant demo (seed Flyway V3) |
 | Disabilitazione | `payment.security.enabled=false` (solo test) |
+| **BFF (payment-ui)** | Il browser chiama `/api/*` sulla UI; **nginx** (Docker) o **Vite proxy** (dev) inietta `X-Api-Key` da `PAYMENT_API_KEY` — la key **non** è nel bundle JavaScript |
+
+**BFF** = *Backend-for-Frontend*: un layer server tra SPA e API che tiene i segreti lato server. Qui è implementato come reverse proxy (nginx), non come microservizio separato.
 
 Actuator health, Prometheus e Swagger restano pubblici per healthcheck Docker e documentazione.
 

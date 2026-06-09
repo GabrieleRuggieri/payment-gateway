@@ -13,4 +13,10 @@ describe('API test collection', () => {
     expect(failureTests[0].expected).toContain('REFUNDED');
     expect(failureTests[1].expected).toContain('FAILED');
   });
+
+  it('documents BFF proxy behaviour in the validation folder', () => {
+    const validationTests = TEST_SECTIONS.find((section) => section.id === 'validation')!.tests;
+    const bffTest = validationTests.find((test) => test.id === 'bff-no-client-api-key');
+    expect(bffTest?.expected).toContain('no API key in bundle');
+  });
 });

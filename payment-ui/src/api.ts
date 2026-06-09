@@ -1,14 +1,10 @@
 import { PaymentResponse, TERMINAL_STATUSES } from './types';
 
+/**
+ * Same-origin in Docker/dev: requests go to /api/* and the BFF (nginx or Vite proxy)
+ * injects X-Api-Key server-side. The browser never holds the merchant API key.
+ */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
-const API_KEY = import.meta.env.VITE_API_KEY ?? 'pgw-demo-key-32chars-minimum!!';
-
-function apiHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  return {
-    'X-Api-Key': API_KEY,
-    ...extra,
-  };
-}
 
 export interface ApiCallResult {
   ok: boolean;
@@ -28,9 +24,9 @@ export interface CreatePaymentParams {
 }
 
 export async function createPayment(params: CreatePaymentParams): Promise<ApiCallResult> {
-  const headers: Record<string, string> = apiHeaders({
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-  });
+  };
 
   if (!params.skipIdempotencyHeader && params.idempotencyKey) {
     headers['Idempotency-Key'] = params.idempotencyKey;
@@ -63,9 +59,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<ApiCal
 
 export async function getPayment(paymentId: string): Promise<ApiCallResult> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/payments/${paymentId}`, {
-      headers: apiHeaders(),
-    });
+    const res = await fetch(`${API_BASE}/api/v1/payments/${paymentId}`);
     const body = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, headers: res.headers, body };
   } catch (e) {

@@ -252,7 +252,8 @@ services:
       context: ./payment-ui
       args:
         VITE_API_BASE_URL: ""
-        VITE_API_KEY: ${PAYMENT_API_KEY:-pgw-demo-key-32chars-minimum!!}
+    environment:
+      PAYMENT_API_KEY: ${PAYMENT_API_KEY:-pgw-demo-key-32chars-minimum!!}
     ports:
       - "3000:80"
     depends_on:

@@ -347,9 +347,32 @@ export const TEST_SECTIONS: TestSection[] = [
     id: 'validation',
     eyebrow: 'Validation',
     title: 'Client errors (4xx)',
-    description: 'Invalid requests rejected before saga execution.',
+    description: 'Invalid or unauthorized requests rejected before saga execution.',
     variant: 'gray',
     tests: [
+      {
+        id: 'bff-no-client-api-key',
+        name: 'BFF injects API key',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Browser does not send X-Api-Key; nginx/Vite BFF adds it server-side.',
+        expected: 'HTTP 200 — client has no API key in bundle',
+        run: async (ctx) => {
+          const result = await createPayment({
+            merchantId: ctx.merchantId,
+            amount: '10.00',
+            currency: 'EUR',
+            idempotencyKey: crypto.randomUUID(),
+          });
+          const pass = result.status === 200;
+          return {
+            pass,
+            httpStatus: result.status,
+            message: pass ? 'Accepted via BFF (no client API key)' : `Unexpected ${result.status}`,
+            detail: formatBody(result),
+          };
+        },
+      },
       {
         id: 'validation-missing-key',
         name: 'Missing Idempotency-Key',
