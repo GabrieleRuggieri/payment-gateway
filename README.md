@@ -17,7 +17,9 @@
 8. [Resilience: circuit breaker e retry](#8-resilience-circuit-breaker-e-retry)
 9. [Testing](#9-testing)
 10. [Docker Compose locale](#10-docker-compose-locale)
-11. [Cosa dire al colloquio](#11-cosa-dire-al-colloquio)
+11. [Sicurezza API](#11-sicurezza-api)
+12. [Operazioni](#12-operazioni)
+13. [Cosa dire al colloquio](#13-cosa-dire-al-colloquio)
 
 ---
 
@@ -969,6 +971,19 @@ Ogni servizio saga ha test unitari che mockano `SagaEventDedupService` e i rispe
 - path di fallimento → `IllegalStateException` per DLT routing
 - path di compensazione (es. `CAPTURE_FAILED` → `voidAuthorization`)
 
+### 9.4 Copertura aggiuntiva
+
+| Tipo | Cosa verifica |
+|------|----------------|
+| `PaymentApiSecurityTest` | API key obbligatoria, merchant mismatch → 403 |
+| `OutboxRelayIntegrationTest` | relay pubblica eventi PENDING su Kafka (Testcontainers) |
+| `WebhookNotificationServiceTest` | dedup Redis + POST webhook |
+| `WebhookReceiverControllerTest` | sink locale per le notifiche |
+| `payment-ui` Vitest | stati terminali saga + struttura test collection |
+| `scripts/saga-e2e-smoke.sh` | smoke end-to-end su stack Docker (CI) |
+
+**CI:** job `backend-integration` (Testcontainers con Docker) + `compose-smoke` (health + saga SETTLED).
+
 ---
 
 ## 10. Docker Compose locale
@@ -1005,9 +1020,13 @@ docker compose up -d
 # Monitora i log del payment service
 docker compose logs -f payment-service
 
-# Crea un pagamento
+# Copia .env.example → .env per personalizzare password e API key (opzionale)
+cp .env.example .env
+
+# Crea un pagamento (richiede X-Api-Key)
 curl -X POST http://localhost:8080/api/v1/payments \
   -H "Content-Type: application/json" \
+  -H "X-Api-Key: pgw-demo-key-32chars-minimum!!" \
   -H "Idempotency-Key: test-key-$(uuidgen)" \
   -d '{
     "merchantId": "550e8400-e29b-41d4-a716-446655440000",
@@ -1018,8 +1037,12 @@ curl -X POST http://localhost:8080/api/v1/payments \
 # Retry con la stessa key — deve restituire la stessa risposta
 curl -X POST http://localhost:8080/api/v1/payments \
   -H "Content-Type: application/json" \
+  -H "X-Api-Key: pgw-demo-key-32chars-minimum!!" \
   -H "Idempotency-Key: test-key-STESSO-VALORE" \
   -d '{ "merchantId": "550e8400-e29b-41d4-a716-446655440000", "amount": "99.99", "currency": "EUR" }'
+
+# Smoke saga end-to-end (stack già avviato)
+sh ./scripts/saga-e2e-smoke.sh
 
 # Verifica outbox events
 docker compose exec postgres psql -U payments_user -d payments \
@@ -1041,6 +1064,7 @@ open http://localhost:3000
 | `capture-service`     | 8082       | Saga step — consumer only               |
 | `settlement-service`  | 8083       | Saga step — consumer only               |
 | `notification-service`| 8084       | Consumer — webhook HTTP al merchant     |
+| `webhook-receiver`    | 8099       | Sink locale per webhook demo + GET lista |
 | `payment-ui`          | 3000       | React + Vite, proxied via Nginx         |
 | `kafka-ui`            | 8090       | Kafka topic browser                     |
 | `postgres`            | 5432       | Database condiviso (migrazioni Flyway via `payment-service`) |
@@ -1061,7 +1085,36 @@ http://localhost:8080/swagger-ui.html
 
 ---
 
-## 11. Domande
+## 11. Sicurezza API
+
+Le API merchant (`/api/v1/payments`) sono protette da **API key** nell'header `X-Api-Key`.
+
+| Aspetto | Implementazione |
+|---------|-----------------|
+| Storage | Tabella `merchant_api_keys` — solo hash SHA-256 della key |
+| Binding | La key è legata a un `merchantId`; il body deve usare lo stesso merchant |
+| Ownership | `GET /payments/{id}` consentito solo al merchant proprietario |
+| Dev key | `pgw-demo-key-32chars-minimum!!` → merchant demo (seed Flyway V3) |
+| Disabilitazione | `payment.security.enabled=false` (solo test) |
+
+Actuator health, Prometheus e Swagger restano pubblici per healthcheck Docker e documentazione.
+
+---
+
+## 12. Operazioni
+
+| Area | Dettaglio |
+|------|-----------|
+| **Secrets** | `.env.example` — password Postgres e `PAYMENT_API_KEY` per Compose |
+| **Webhook sink** | `webhook-receiver` su `:8099` — `POST/GET /webhooks/payments` |
+| **Rate limit** | Redis, 120 req/min per merchant su `/api/**` |
+| **Cleanup** | Scheduler: idempotency keys scadute (orario), saga dedup > 30 giorni (notturno) |
+| **Tracing log** | `X-Correlation-Id` in MDC + echo nella response |
+| **Integrazioni** | Processor/acquirer restano **mockati** (demo) |
+
+---
+
+## 13. Domande
 
 ### Domanda: "Come eviti il double charge?"
 
@@ -1078,4 +1131,8 @@ http://localhost:8080/swagger-ui.html
 ### Domanda: "Come gestisci i fallimenti?"
 
 > *"Ogni passo della saga pubblica un evento di successo o di fallimento. Un fallimento trigger una compensating transaction — per esempio, se il capture fallisce dopo l'autorizzazione, pubblichiamo un evento che dice all'authorization service di fare un void. Non rollback distribuito, ma forward correction: il sistema procede sempre in avanti, annullando i passi precedenti con operazioni esplicite."*
+
+### Domanda: "Come autentichi le API merchant?"
+
+> *"API key nell'header X-Api-Key, salvata come hash SHA-256 in PostgreSQL e legata a un merchantId. Ogni richiesta deve usare il merchant corretto; il GET su un pagamento verifica l'ownership. Rate limiting per merchant su Redis. Per la demo la key è nel seed Flyway; in produzione ruoterei le key e le terrei in un secrets manager."*
 
