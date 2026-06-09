@@ -19,6 +19,16 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private final PaymentSecurityProperties securityProperties;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/actuator/health")
+                || path.startsWith("/actuator/prometheus")
+                || path.startsWith("/swagger-ui")
+                || path.equals("/swagger-ui.html")
+                || path.startsWith("/api-docs");
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
