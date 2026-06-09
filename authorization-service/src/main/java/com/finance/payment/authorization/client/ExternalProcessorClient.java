@@ -2,7 +2,6 @@ package com.finance.payment.authorization.client;
 
 import com.finance.payment.authorization.dto.AuthorizationResult;
 import com.finance.payment.common.exception.ProcessorUnavailableException;
-import com.finance.payment.common.exception.TemporaryProcessorException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.decorators.Decorators;
@@ -19,7 +18,7 @@ import java.util.function.Supplier;
 /**
  * Resilience4j-wrapped client for an external payment processor (mocked for the demo).
  * <p>
- * Mock rules: amounts &gt; 9999 trigger {@link TemporaryProcessorException} to exercise retries.
+ * Mock rules: amounts &gt; 9999 return a permanent processor decline (no saga retry loop).
  */
 @Component
 @RequiredArgsConstructor
@@ -33,7 +32,12 @@ public class ExternalProcessorClient {
      * Authorize (hold) funds. Replace {@link #callProcessor} with a real HTTP integration.
      */
     public AuthorizationResult authorize(UUID paymentId, BigDecimal amount, String currency) {
-        return executeWithResilience(() -> callProcessor(paymentId, amount, currency));
+        try {
+            return executeWithResilience(() -> callProcessor(paymentId, amount, currency));
+        } catch (ProcessorUnavailableException e) {
+            log.warn("Authorization unavailable for payment {}: {}", paymentId, e.getMessage());
+            return AuthorizationResult.failure(e.getMessage());
+        }
     }
 
     /**
@@ -68,7 +72,7 @@ public class ExternalProcessorClient {
         log.debug("Authorizing payment {} amount {} {}", paymentId, amount, currency);
 
         if (amount.compareTo(new BigDecimal("9999")) > 0) {
-            throw new TemporaryProcessorException("Limit exceeded");
+            return AuthorizationResult.failure("Limit exceeded");
         }
 
         return AuthorizationResult.success(

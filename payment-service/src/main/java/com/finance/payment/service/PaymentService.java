@@ -120,16 +120,24 @@ public class PaymentService {
     @Transactional
     public void handleSettlementFailed(UUID paymentId, String reason) {
         Payment payment = findPaymentOrThrow(paymentId);
-        PaymentStatus old = payment.getStatus();
-        payment.fail(PaymentStatus.CAPTURED);
+        if (payment.getStatus() != PaymentStatus.CAPTURED) {
+            log.debug("Ignoring SETTLEMENT_FAILED for payment {} in status {}", paymentId, payment.getStatus());
+            return;
+        }
 
-        appendAudit(payment, PaymentEventType.SETTLEMENT_FAILED.wireName(), old, PaymentStatus.FAILED, Map.of("reason", reason));
+        // Keep CAPTURED until PAYMENT_REFUNDED — compensation runs asynchronously.
+        appendAudit(payment, PaymentEventType.SETTLEMENT_FAILED.wireName(), PaymentStatus.CAPTURED,
+                PaymentStatus.CAPTURED, Map.of("reason", reason));
         log.warn("Settlement failed for payment {}: {}", paymentId, reason);
     }
 
     @Transactional
     public void handleRefunded(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
+        if (payment.getStatus() == PaymentStatus.REFUNDED) {
+            log.debug("Ignoring duplicate PAYMENT_REFUNDED for payment {}", paymentId);
+            return;
+        }
         PaymentStatus old = payment.getStatus();
         payment.refund();
 

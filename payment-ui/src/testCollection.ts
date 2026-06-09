@@ -1,13 +1,22 @@
 import { ApiCallResult, DEFAULT_MERCHANT_ID, createPayment, getPayment, pollUntilTerminal } from './api';
-import { PaymentResponse } from './types';
+import { PaymentResponse, PaymentStatus } from './types';
 
 export type TestRunStatus = 'idle' | 'running' | 'passed' | 'failed';
 
 export interface TestRunState {
   status: TestRunStatus;
   httpStatus?: number;
+  finalStatus?: string;
   message?: string;
   detail?: string;
+}
+
+export interface TestRunResult {
+  pass: boolean;
+  httpStatus: number;
+  message: string;
+  detail?: string;
+  finalStatus?: string;
 }
 
 export interface TestContext {
@@ -24,7 +33,7 @@ export interface ApiTestCase {
   path: string;
   description: string;
   expected: string;
-  run: (ctx: TestContext) => Promise<{ pass: boolean; httpStatus: number; message: string; detail?: string }>;
+  run: (ctx: TestContext) => Promise<TestRunResult>;
 }
 
 export interface TestSection {
@@ -50,6 +59,47 @@ function formatBody(result: ApiCallResult): string {
   }
 }
 
+/** POST /payments always returns 200 when accepted; poll GET until saga reaches a terminal status. */
+async function assertSagaOutcome(
+  created: ApiCallResult,
+  expectedFinal: PaymentStatus | PaymentStatus[],
+): Promise<TestRunResult> {
+  const expected = Array.isArray(expectedFinal) ? expectedFinal : [expectedFinal];
+
+  if (!created.ok) {
+    return {
+      pass: false,
+      httpStatus: created.status,
+      message: 'POST failed',
+      detail: formatBody(created),
+    };
+  }
+
+  const payment = paymentFrom(created);
+  if (!payment) {
+    return {
+      pass: false,
+      httpStatus: created.status,
+      message: 'POST 200 but response body missing payment id',
+      detail: formatBody(created),
+    };
+  }
+
+  const final = await pollUntilTerminal(payment.id);
+  const finalStatus = final?.status;
+  const pass = finalStatus != null && expected.includes(finalStatus);
+
+  return {
+    pass,
+    httpStatus: created.status,
+    finalStatus,
+    message: pass
+      ? `POST 200 → ${finalStatus}`
+      : `POST 200 · expected ${expected.join(' | ')} · got ${finalStatus ?? 'timeout'}`,
+    detail: final ? JSON.stringify(final, null, 2) : undefined,
+  };
+}
+
 export function createInitialTestContext(merchantId: string): TestContext {
   return {
     merchantId,
@@ -73,7 +123,7 @@ export const TEST_SECTIONS: TestSection[] = [
         method: 'POST',
         path: '/api/v1/payments',
         description: 'Body: €49.99 EUR — typical demo amount.',
-        expected: 'HTTP 200 → saga completes → SETTLED',
+        expected: 'POST 200 (accepted) → saga ends SETTLED',
         run: async (ctx) => {
           const key = crypto.randomUUID();
           const created = await createPayment({
@@ -83,20 +133,14 @@ export const TEST_SECTIONS: TestSection[] = [
             idempotencyKey: key,
             description: 'Test: standard EUR payment',
           });
-          if (!created.ok) {
-            return { pass: false, httpStatus: created.status, message: 'Create failed', detail: formatBody(created) };
+          const result = await assertSagaOutcome(created, 'SETTLED');
+          if (result.pass) {
+            const payment = paymentFrom(created)!;
+            ctx.lastPaymentId = payment.id;
+            ctx.lastIdempotencyKey = key;
+            result.message = `POST 200 → SETTLED (${payment.id.slice(0, 8)}…)`;
           }
-          const payment = paymentFrom(created)!;
-          ctx.lastPaymentId = payment.id;
-          ctx.lastIdempotencyKey = key;
-          const final = await pollUntilTerminal(payment.id);
-          const pass = final?.status === 'SETTLED';
-          return {
-            pass,
-            httpStatus: created.status,
-            message: pass ? `SETTLED (${payment.id.slice(0, 8)}…)` : `Got ${final?.status ?? 'timeout'}`,
-            detail: final ? JSON.stringify(final, null, 2) : undefined,
-          };
+          return result;
         },
       },
       {
@@ -105,7 +149,7 @@ export const TEST_SECTIONS: TestSection[] = [
         method: 'POST',
         path: '/api/v1/payments',
         description: 'Body: €9.99 EUR — minimum realistic charge.',
-        expected: 'HTTP 200 → SETTLED',
+        expected: 'POST 200 (accepted) → saga ends SETTLED',
         run: async (ctx) => {
           const created = await createPayment({
             merchantId: ctx.merchantId,
@@ -113,17 +157,7 @@ export const TEST_SECTIONS: TestSection[] = [
             currency: 'EUR',
             idempotencyKey: crypto.randomUUID(),
           });
-          if (!created.ok) {
-            return { pass: false, httpStatus: created.status, message: 'Create failed', detail: formatBody(created) };
-          }
-          const payment = paymentFrom(created)!;
-          const final = await pollUntilTerminal(payment.id);
-          const pass = final?.status === 'SETTLED';
-          return {
-            pass,
-            httpStatus: created.status,
-            message: pass ? 'SETTLED' : `Got ${final?.status ?? 'timeout'}`,
-          };
+          return assertSagaOutcome(created, 'SETTLED');
         },
       },
       {
@@ -132,7 +166,7 @@ export const TEST_SECTIONS: TestSection[] = [
         method: 'POST',
         path: '/api/v1/payments',
         description: 'Body: $150.00 USD.',
-        expected: 'HTTP 200 → SETTLED',
+        expected: 'POST 200 (accepted) → saga ends SETTLED',
         run: async (ctx) => {
           const created = await createPayment({
             merchantId: ctx.merchantId,
@@ -140,12 +174,7 @@ export const TEST_SECTIONS: TestSection[] = [
             currency: 'USD',
             idempotencyKey: crypto.randomUUID(),
           });
-          if (!created.ok) {
-            return { pass: false, httpStatus: created.status, message: 'Create failed', detail: formatBody(created) };
-          }
-          const final = await pollUntilTerminal(paymentFrom(created)!.id);
-          const pass = final?.status === 'SETTLED';
-          return { pass, httpStatus: created.status, message: pass ? 'SETTLED' : `Got ${final?.status ?? 'timeout'}` };
+          return assertSagaOutcome(created, 'SETTLED');
         },
       },
       {
@@ -154,7 +183,7 @@ export const TEST_SECTIONS: TestSection[] = [
         method: 'POST',
         path: '/api/v1/payments',
         description: 'Body: €4999.99 EUR — highest amount the mock acquirer settles (authorization limit is €9999).',
-        expected: 'HTTP 200 → SETTLED',
+        expected: 'POST 200 (accepted) → saga ends SETTLED',
         run: async (ctx) => {
           const created = await createPayment({
             merchantId: ctx.merchantId,
@@ -162,12 +191,11 @@ export const TEST_SECTIONS: TestSection[] = [
             currency: 'EUR',
             idempotencyKey: crypto.randomUUID(),
           });
-          if (!created.ok) {
-            return { pass: false, httpStatus: created.status, message: 'Create failed', detail: formatBody(created) };
+          const result = await assertSagaOutcome(created, 'SETTLED');
+          if (result.pass) {
+            result.message = 'POST 200 → SETTLED at acquirer limit';
           }
-          const final = await pollUntilTerminal(paymentFrom(created)!.id);
-          const pass = final?.status === 'SETTLED';
-          return { pass, httpStatus: created.status, message: pass ? 'SETTLED at limit' : `Got ${final?.status ?? 'timeout'}` };
+          return result;
         },
       },
     ],
@@ -185,7 +213,7 @@ export const TEST_SECTIONS: TestSection[] = [
         method: 'POST',
         path: '/api/v1/payments',
         description: 'Body: €9999.00 EUR — passes authorization (≤9999) but mock acquirer rejects amounts above 4999.99.',
-        expected: 'HTTP 200 → saga fails → FAILED',
+        expected: 'POST 200 (accepted) → saga compensates → REFUNDED',
         run: async (ctx) => {
           const created = await createPayment({
             merchantId: ctx.merchantId,
@@ -194,17 +222,7 @@ export const TEST_SECTIONS: TestSection[] = [
             idempotencyKey: crypto.randomUUID(),
             description: 'Test: settlement limit exceeded',
           });
-          if (!created.ok) {
-            return { pass: false, httpStatus: created.status, message: 'Create failed', detail: formatBody(created) };
-          }
-          const final = await pollUntilTerminal(paymentFrom(created)!.id);
-          const pass = final?.status === 'FAILED';
-          return {
-            pass,
-            httpStatus: created.status,
-            message: pass ? 'FAILED as expected' : `Got ${final?.status ?? 'timeout'}`,
-            detail: final ? JSON.stringify(final, null, 2) : undefined,
-          };
+          return assertSagaOutcome(created, 'REFUNDED');
         },
       },
       {
@@ -213,7 +231,7 @@ export const TEST_SECTIONS: TestSection[] = [
         method: 'POST',
         path: '/api/v1/payments',
         description: 'Body: €10000.00 EUR — mock processor rejects amounts above 9999.',
-        expected: 'HTTP 200 → saga fails → FAILED',
+        expected: 'POST 200 (accepted) → saga ends FAILED',
         run: async (ctx) => {
           const created = await createPayment({
             merchantId: ctx.merchantId,
@@ -222,17 +240,7 @@ export const TEST_SECTIONS: TestSection[] = [
             idempotencyKey: crypto.randomUUID(),
             description: 'Test: authorization limit exceeded',
           });
-          if (!created.ok) {
-            return { pass: false, httpStatus: created.status, message: 'Create failed', detail: formatBody(created) };
-          }
-          const final = await pollUntilTerminal(paymentFrom(created)!.id);
-          const pass = final?.status === 'FAILED';
-          return {
-            pass,
-            httpStatus: created.status,
-            message: pass ? 'FAILED as expected' : `Got ${final?.status ?? 'timeout'}`,
-            detail: final ? JSON.stringify(final, null, 2) : undefined,
-          };
+          return assertSagaOutcome(created, 'FAILED');
         },
       },
     ],

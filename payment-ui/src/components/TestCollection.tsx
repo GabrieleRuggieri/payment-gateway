@@ -49,6 +49,7 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
         setTestState(testId, {
           status: result.pass ? 'passed' : 'failed',
           httpStatus: result.httpStatus,
+          finalStatus: result.finalStatus,
           message: result.message,
           detail: result.detail,
         });
@@ -157,14 +158,18 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
                         </p>
                       </div>
                       <div className="test-item__actions">
-                        <StatusBadge status={state.status} httpStatus={state.httpStatus} />
+                        <StatusBadge
+                          status={state.status}
+                          httpStatus={state.httpStatus}
+                          finalStatus={state.finalStatus}
+                        />
                         <button
                           type="button"
                           className="btn-outline btn-outline--compact"
                           onClick={() => void runTest(test.id)}
                           disabled={state.status === 'running'}
                         >
-                          {state.status === 'running' ? 'Sending…' : 'Send'}
+                          {state.status === 'running' ? 'Running…' : 'Send'}
                         </button>
                         {state.detail && (
                           <button
@@ -209,15 +214,25 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
   );
 }
 
-function StatusBadge({ status, httpStatus }: { status: TestRunStatus; httpStatus?: number }) {
+function StatusBadge({
+  status,
+  httpStatus,
+  finalStatus,
+}: {
+  status: TestRunStatus;
+  httpStatus?: number;
+  finalStatus?: string;
+}) {
   if (status === 'idle') return null;
 
-  const label =
-    status === 'running'
-      ? 'Sending'
-      : status === 'passed'
-        ? `${httpStatus ?? 200} OK`
-        : `${httpStatus ?? 'Err'} Fail`;
+  let label: string;
+  if (status === 'running') {
+    label = 'Running…';
+  } else if (status === 'passed') {
+    label = finalStatus ? `Pass · ${finalStatus}` : `${httpStatus ?? 200} OK`;
+  } else {
+    label = finalStatus ? `Fail · ${finalStatus}` : `${httpStatus ?? 'Err'} Fail`;
+  }
 
   return <span className={`test-badge test-badge--${status}`}>{label}</span>;
 }
