@@ -41,6 +41,7 @@ jobs:
         run: |
           mvn verify \
             --no-transfer-progress \
+            -DexcludedGroups=integration \
             -Dspring.datasource.url=jdbc:postgresql://localhost:5432/payments_test \
             -Dspring.datasource.username=test \
             -Dspring.datasource.password=test

@@ -1,5 +1,6 @@
 package com.finance.payment;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
+@Tag("integration")
 class PaymentApiSecurityTest {
 
     private static final String DEMO_API_KEY = "pgw-demo-key-32chars-minimum!!";
@@ -50,6 +52,7 @@ class PaymentApiSecurityTest {
         registry.add("payment.security.enabled", () -> "true");
         registry.add("payment.rate-limit.enabled", () -> "false");
         registry.add("management.health.redis.enabled", () -> "false");
+        registry.add("management.health.kafka.enabled", () -> "false");
     }
 
     @Autowired

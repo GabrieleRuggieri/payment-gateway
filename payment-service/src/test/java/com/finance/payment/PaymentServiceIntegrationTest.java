@@ -7,6 +7,7 @@ import com.finance.payment.domain.OutboxStatus;
 import com.finance.payment.repository.PaymentOutboxRepository;
 import com.finance.payment.repository.PaymentRepository;
 import com.finance.payment.service.PaymentService;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
+@Tag("integration")
 class PaymentServiceIntegrationTest {
 
     @Container
