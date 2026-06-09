@@ -19,7 +19,7 @@
 10. [Docker Compose locale](#10-docker-compose-locale)
 11. [Sicurezza API](#11-sicurezza-api)
 12. [Operazioni](#12-operazioni)
-13. [Domande da colloquio](#13-domande-da-colloquio)
+13. [Domande](#13-domande)
 
 ---
 
@@ -1137,7 +1137,7 @@ Actuator health, Prometheus e Swagger restano pubblici: `ApiKeyAuthenticationFil
 
 ---
 
-## 13. Domande da colloquio
+## 13. Domande
 
 ### Domanda: "Come eviti il double charge?"
 
