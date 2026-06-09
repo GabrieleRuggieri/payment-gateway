@@ -8,6 +8,7 @@ COPY payment-service/pom.xml payment-service/pom.xml
 COPY authorization-service/pom.xml authorization-service/pom.xml
 COPY settlement-service/pom.xml settlement-service/pom.xml
 COPY notification-service/pom.xml notification-service/pom.xml
+COPY webhook-receiver/pom.xml webhook-receiver/pom.xml
 
 RUN apk add --no-cache maven && \
     mvn -pl capture-service -am package -DskipTests -q
