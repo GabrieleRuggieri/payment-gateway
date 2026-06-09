@@ -103,9 +103,12 @@ jobs:
 
       - name: Run integration tests
         run: |
-          mvn -pl payment-service,notification-service,webhook-receiver test \
-            --no-transfer-progress \
-            -Dtest=PaymentServiceIntegrationTest,PaymentApiSecurityTest,OutboxRelayIntegrationTest,WebhookNotificationServiceTest,WebhookReceiverControllerTest
+          mvn -pl payment-service test --no-transfer-progress \
+            -Dtest=PaymentServiceIntegrationTest,PaymentApiSecurityTest,OutboxRelayIntegrationTest
+          mvn -pl notification-service test --no-transfer-progress \
+            -Dtest=WebhookNotificationServiceTest
+          mvn -pl webhook-receiver test --no-transfer-progress \
+            -Dtest=WebhookReceiverControllerTest
 
   # ── Docker Compose smoke test ─────────────────────────────────────────────────
   compose-smoke:
