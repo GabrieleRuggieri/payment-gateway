@@ -4,6 +4,9 @@ global:
 scrape_configs:
   - job_name: payment-service
     metrics_path: /actuator/prometheus
+    authorization:
+      type: Bearer
+      credentials: pgw-internal-demo-token
     static_configs:
       - targets: ["payment-service:8080"]
 

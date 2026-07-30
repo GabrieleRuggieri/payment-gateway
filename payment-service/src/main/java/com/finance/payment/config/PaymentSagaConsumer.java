@@ -49,13 +49,18 @@ public class PaymentSagaConsumer {
             String reason = String.valueOf(event.getPayload().getOrDefault("reason", "unknown"));
 
             switch (type) {
-                case PAYMENT_AUTHORIZED -> paymentService.handleAuthorized(paymentId);
+                case PAYMENT_AUTHORIZED -> {
+                    Object auth = event.getPayload().get("authorizationCode");
+                    String authorizationCode = auth != null ? auth.toString() : null;
+                    paymentService.handleAuthorized(paymentId, authorizationCode);
+                }
                 case AUTHORIZATION_FAILED -> paymentService.handleAuthorizationFailed(paymentId, reason);
                 case PAYMENT_CAPTURED -> paymentService.handleCaptured(paymentId);
                 case CAPTURE_FAILED -> paymentService.handleCaptureFailed(paymentId, reason);
                 case PAYMENT_SETTLED -> paymentService.handleSettled(paymentId);
                 case SETTLEMENT_FAILED -> paymentService.handleSettlementFailed(paymentId, reason);
                 case PAYMENT_REFUNDED -> paymentService.handleRefunded(paymentId);
+                case PAYMENT_DISPUTED -> paymentService.handleDisputed(paymentId, reason);
                 default -> log.trace("Ignoring event type: {}", event.getEventType());
             }
         } catch (Exception e) {

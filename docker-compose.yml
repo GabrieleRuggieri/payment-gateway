@@ -25,6 +25,14 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=8
+      - -c
+      - max_wal_senders=8
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-payments}
       POSTGRES_USER: ${POSTGRES_USER:-payments_user}
@@ -84,6 +92,55 @@ services:
       KAFKA_CLUSTERS_0_NAME: local-kraft
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
+  # Debezium Kafka Connect — CDC sull'outbox (sostituisce il polling Java quando abilitato).
+  debezium-connect:
+    image: quay.io/debezium/connect:2.7.3.Final
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: payment-outbox-connect
+      CONFIG_STORAGE_TOPIC: payment_connect_configs
+      OFFSET_STORAGE_TOPIC: payment_connect_offsets
+      STATUS_STORAGE_TOPIC: payment_connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+
+  debezium-register:
+    image: alpine:3.20
+    depends_on:
+      debezium-connect:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    volumes:
+      - ./ops/debezium:/connector:ro
+    environment:
+      CONNECT_URL: http://debezium-connect:8083
+      CONNECTOR_TEMPLATE: /connector/outbox-connector.json
+      POSTGRES_USER: ${POSTGRES_USER:-payments_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-payments}
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["apk add --no-cache curl >/dev/null && exec /bin/sh /connector/register-connector.sh"]
+    restart: "no"
+
   redis:
     image: redis:7-alpine
     ports:
@@ -117,6 +174,14 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-pgw-internal-demo-token}
+      PAYMENT_OUTBOX_RELAY_ENABLED: ${PAYMENT_OUTBOX_RELAY_ENABLED:-false}
+      PAYMENT_OUTBOX_CDC_ACK_ENABLED: ${PAYMENT_OUTBOX_CDC_ACK_ENABLED:-true}
+      PAYMENT_PROCESSOR_PROVIDER: ${PAYMENT_PROCESSOR_PROVIDER:-mock}
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      STRIPE_DEFAULT_PAYMENT_METHOD: ${STRIPE_DEFAULT_PAYMENT_METHOD:-pm_card_visa}
+      STRIPE_WEBHOOKS_ENABLED: ${STRIPE_WEBHOOKS_ENABLED:-false}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
     healthcheck:
       # Flyway gira all'avvio di payment-service; gli altri servizi attendono che sia healthy
       # così lo schema DB è garantito prima delle connessioni.
@@ -221,6 +286,8 @@ services:
     depends_on:
       build-backend:
         condition: service_completed_successfully
+    environment:
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-pgw-internal-demo-token}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8099/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 10s
@@ -253,6 +320,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
       NOTIFICATION_WEBHOOK_DEFAULT_URL: http://webhook-receiver:8099/webhooks/payments
       NOTIFICATION_WEBHOOK_SECRET: ${NOTIFICATION_WEBHOOK_SECRET:-whsec_demo_payment_gateway_local}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-pgw-internal-demo-token}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 10s

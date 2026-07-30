@@ -36,6 +36,7 @@ public class WebhookNotificationService {
             PaymentEventType.PAYMENT_CAPTURED.wireName(),
             PaymentEventType.PAYMENT_SETTLED.wireName(),
             PaymentEventType.PAYMENT_REFUNDED.wireName(),
+            PaymentEventType.PAYMENT_DISPUTED.wireName(),
             PaymentEventType.AUTHORIZATION_FAILED.wireName(),
             PaymentEventType.CAPTURE_FAILED.wireName(),
             PaymentEventType.SETTLEMENT_FAILED.wireName()

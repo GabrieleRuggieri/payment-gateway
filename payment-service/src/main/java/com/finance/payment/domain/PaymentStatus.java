@@ -7,5 +7,7 @@ public enum PaymentStatus {
     CAPTURED,
     SETTLED,
     FAILED,
-    REFUNDED
+    REFUNDED,
+    /** Chargeback / dispute lato processore (es. Stripe charge.dispute.created). */
+    DISPUTED
 }

@@ -1,7 +1,9 @@
 # Payment Gateway con Saga + Idempotency
 
 > **Dominio:** Payments / Distributed Systems  
-> **Stack:** Spring Boot 4.0.6 · Kafka KRaft 7.8.0 · PostgreSQL 16 · Redis 7 · Resilience4j 2.3.0 · React 19 / Vite · Docker Compose
+> **Stack:** Spring Boot 4 · Kafka KRaft 7.8 · PostgreSQL 16 · Redis 7 · Debezium 2.7 · Resilience4j · Stripe (test) · React 19 / Vite · Docker Compose
+
+**Stato locale (demo portfolio):** saga coreografica, idempotency, outbox via **Debezium CDC** (relay polling disattivabile), processore **mock o Stripe test**, webhook merchant firmati HMAC + DLQ, webhook **inbound Stripe** (dispute/refund), mini admin webhook, BFF che nasconde la API key, token interno su prometheus/swagger e POST webhook-receiver. Overlay prod-like con OTel/Prometheus/Grafana. Non è un gateway PCI/enterprise in produzione.
 
 ---
 
@@ -336,29 +338,19 @@ PaymentCaptured
 
 ```
 payment-gateway/
-├── common/                          # eventi Kafka, SagaEventDedupService, listener auto-config
-├── payment-service/                 # API REST, outbox relay, sicurezza, migrazioni Flyway
-│   ├── api/                         # PaymentController, DTO, RequestCorrelationFilter
-│   ├── domain/                      # Payment, Outbox, IdempotencyRecord
-│   ├── security/                    # ApiKeyAuthenticationFilter, rate limit, MerchantApiKey
-│   ├── service/                     # PaymentService, IdempotencyService, OutboxRelayService
-│   ├── kafka/                       # Saga consumer (aggiornamento stato payment)
-│   └── db/migration/                # V1–V4 (payments, saga dedup, api keys)
-├── authorization-service/           # step saga: authorize + void (compensazione)
+├── common/                          # eventi Kafka, processor mock/Stripe, saga dedup
+├── payment-service/                 # API REST, outbox, Stripe webhooks inbound, admin webhook, Flyway
+├── authorization-service/           # step saga: authorize + void
 ├── capture-service/                 # step saga: capture
-├── settlement-service/              # step saga: settle + refund (compensazione)
-├── notification-service/            # webhook HTTP al merchant (dedup Redis)
-├── webhook-receiver/                # sink demo per webhook (POST/GET in RAM)
-├── payment-ui/                      # React 19 + Vite; BFF nginx / proxy dev
-│   ├── nginx.conf.template          # inietta PAYMENT_API_KEY su /api/*
-│   ├── docker-entrypoint.sh
-│   └── src/                         # test collection Postman-style, saga flow UI
-├── scripts/
-│   ├── build-backend.sh
-│   ├── build-frontend.sh
-│   └── saga-e2e-smoke.sh
-├── .env.example
-└── docker-compose.yml
+├── settlement-service/              # step saga: settle + refund
+├── notification-service/            # webhook merchant firmati + coda Postgres + DLQ
+├── webhook-receiver/                # sink demo (POST protetto da X-Internal-Token)
+├── payment-ui/                      # React 19 + Vite; BFF nginx / proxy Vite
+├── ops/                             # OTel, Tempo, Prometheus, Grafana, Debezium connector
+├── scripts/                         # build, saga-e2e-smoke, load-smoke
+├── docker-compose.yml               # stack locale + Debezium Connect
+├── docker-compose.prod.yml          # overlay resource limits + observability
+└── .env.example
 ```
 
 ### 6.2 Domain entities
@@ -1061,43 +1053,58 @@ curl -X POST http://localhost:8080/api/v1/payments \
 # Smoke saga end-to-end (stack già avviato)
 sh ./scripts/saga-e2e-smoke.sh
 
+# Load smoke (N create parallele)
+COUNT=10 PARALLEL=5 sh ./scripts/load-smoke.sh
+
+# Admin webhook merchant
+curl -s -H "X-Api-Key: pgw-demo-key-32chars-minimum!!" \
+  http://localhost:8080/api/v1/merchants/550e8400-e29b-41d4-a716-446655440000/webhook
+
+# Stripe inbound (test): `stripe listen --forward-to localhost:8080/api/v1/stripe/webhooks`
+# poi STRIPE_WEBHOOKS_ENABLED=true e STRIPE_WEBHOOK_SECRET=whsec_... dal CLI
+
 # Verifica outbox events
 docker compose exec postgres psql -U payments_user -d payments \
   -c "SELECT id, event_type, status, attempts FROM payment_outbox ORDER BY created_at DESC LIMIT 10;"
 
+# Debezium connector status
+curl -s http://localhost:8083/connectors/payments-outbox-connector/status
+
 # Visualizza Kafka UI
 open http://localhost:8090
 
-# Apri la demo UI (React/Vite, servita da Nginx — BFF inietta l'API key)
+# Apri la demo UI (React/Vite — BFF inietta l'API key)
 open http://localhost:3000
 
-# Webhook ricevuti dal notification-service (dopo un pagamento)
+# Webhook ricevuti (GET ispezione)
 curl http://localhost:8099/webhooks/payments
 ```
 
 ### 10.1 Servizi e porte
 
-| Servizio              | Porta host | Note                                    |
-|-----------------------|------------|-----------------------------------------|
-| `payment-service`     | 8080       | REST API + Actuator + Swagger           |
-| `authorization-service` | 8081    | Saga step — consumer only               |
-| `capture-service`     | 8082       | Saga step — consumer only               |
-| `settlement-service`  | 8083       | Saga step — consumer only               |
-| `notification-service`| 8084       | Consumer — webhook HTTP al merchant     |
-| `webhook-receiver`    | 8099       | Sink locale per webhook demo + GET lista |
-| `payment-ui`          | 3000       | React + Vite, BFF nginx (`/api/*` → payment-service) |
-| `kafka-ui`            | 8090       | Kafka topic browser                     |
-| `postgres`            | 5432       | Database condiviso (migrazioni Flyway via `payment-service`) |
-| `kafka`               | 9092       | KRaft single-node, listener host        |
-| `redis`               | 6379       | Dedup per notification-service          |
+| Servizio | Porta | Note |
+|----------|-------|------|
+| `payment-service` | 8080 | REST + Stripe inbound + admin webhook |
+| `authorization/capture/settlement` | 8081–8083 | Saga consumers |
+| `notification-service` | 8084 | Webhook firmati + retry/DLQ |
+| `webhook-receiver` | 8099 | Sink demo (POST con token interno) |
+| `payment-ui` | 3000 | React + BFF nginx |
+| `debezium-connect` | 8083 | CDC outbox → Kafka |
+| `kafka-ui` | 8090 | Topic browser |
+| `postgres` | 5432 | `wal_level=logical` |
+| `kafka` / `redis` | 9092 / 6379 | Bus + rate limit |
 
 ### 10.2 Healthcheck e startup ordering
 
-`payment-service` esegue le migrazioni Flyway all'avvio. Gli altri servizi (authorization, capture, settlement) aspettano che `payment-service` sia **healthy** (`/actuator/health` → `status: UP`) prima di partire, garantendo che la tabella `saga_processed_events` esista prima che i consumer JDBC si connettano.
+`payment-service` esegue Flyway all'avvio; gli altri servizi attendono che sia healthy. `debezium-register` parte dopo Connect + payment-service healthy.
 
-`payment-ui` aspetta anch'essa `payment-service: condition: service_healthy`.
+### 10.3 Outbox: Debezium vs polling
 
-### 10.3 Swagger UI
+Default Compose: `PAYMENT_OUTBOX_RELAY_ENABLED=false` + Debezium Outbox Event Router su `payment_outbox` → `payment.events`. `OutboxCdcAckService` marca `PUBLISHED`. Per il relay Java: `PAYMENT_OUTBOX_RELAY_ENABLED=true` e `PAYMENT_OUTBOX_CDC_ACK_ENABLED=false`.
+
+### 10.4 Swagger UI
+
+Con `INTERNAL_SERVICE_TOKEN` impostato serve header `X-Internal-Token` (o Bearer):
 
 ```
 http://localhost:8080/swagger-ui.html
@@ -1107,20 +1114,16 @@ http://localhost:8080/swagger-ui.html
 
 ## 11. Sicurezza API
 
-Le API merchant (`/api/v1/payments`) sono protette da **API key** nell'header `X-Api-Key`.
+Le API merchant (`/api/v1/payments`, admin webhook) usano **API key** `X-Api-Key`.
 
 | Aspetto | Implementazione |
 |---------|-----------------|
-| Storage | Tabella `merchant_api_keys` — solo hash SHA-256 della key |
-| Binding | La key è legata a un `merchantId`; il body deve usare lo stesso merchant |
-| Ownership | `GET /payments/{id}` consentito solo al merchant proprietario |
-| Dev key | `pgw-demo-key-32chars-minimum!!` → merchant demo (seed Flyway V3) |
-| Disabilitazione | `payment.security.enabled=false` (solo test) |
-| **BFF (payment-ui)** | Il browser chiama `/api/*` sulla UI; **nginx** (Docker) o **Vite proxy** (dev) inietta `X-Api-Key` da `PAYMENT_API_KEY` — la key **non** è nel bundle JavaScript |
-
-**BFF** = *Backend-for-Frontend*: un layer server tra SPA e API che tiene i segreti lato server. Qui è implementato come reverse proxy (nginx), non come microservizio separato.
-
-Actuator health, Prometheus e Swagger restano pubblici: `ApiKeyAuthenticationFilter.shouldNotFilter()` li esclude dal controllo API key, così l'healthcheck Docker (`wget /actuator/health`) riceve HTTP 200.
+| Storage | `merchant_api_keys` — hash SHA-256 |
+| Ownership | Merchant della key deve coincidere |
+| **BFF** | nginx/Vite inietta la key — mai nel JS |
+| **Token interno** | prometheus/swagger + POST webhook-receiver |
+| **Stripe inbound** | firma `Stripe-Signature` |
+| Actuator | solo `/actuator/health` pubblico |
 
 ---
 
@@ -1128,12 +1131,11 @@ Actuator health, Prometheus e Swagger restano pubblici: `ApiKeyAuthenticationFil
 
 | Area | Dettaglio |
 |------|-----------|
-| **Secrets** | `.env.example` — password Postgres e `PAYMENT_API_KEY` per Compose |
-| **Webhook sink** | `webhook-receiver` su `:8099` — `POST/GET /webhooks/payments` |
-| **Rate limit** | Redis, 120 req/min per merchant su `/api/**` |
-| **Cleanup** | Scheduler: idempotency keys scadute (orario), saga dedup > 30 giorni (notturno) |
-| **Tracing log** | `X-Correlation-Id` in MDC + echo nella response |
-| **Integrazioni** | Processor/acquirer restano **mockati** (demo) |
+| **Secrets** | `.env.example` (Postgres, API key, Stripe test, webhook, token interno) |
+| **Processore** | `mock` o `stripe` (`sk_test_` in locale) |
+| **CDC** | `ops/debezium/` |
+| **Observability** | overlay `docker-compose.prod.yml` |
+| **Load smoke** | `scripts/load-smoke.sh` |
 
 ---
 

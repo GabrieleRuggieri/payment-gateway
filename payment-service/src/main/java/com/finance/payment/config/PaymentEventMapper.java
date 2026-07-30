@@ -34,4 +34,22 @@ public class PaymentEventMapper {
     public String outboxToJson(String eventType, UUID paymentId, Map<String, Object> payload) {
         return toJson(fromOutbox(eventType, paymentId, payload));
     }
+
+    /**
+     * Se {@code payload} è già un envelope {@link PaymentEvent} (chiave {@code eventType}),
+     * lo serializza così com'è; altrimenti lo wrappa.
+     */
+    public String outboxRowToJson(String eventType, UUID paymentId, Map<String, Object> payload) {
+        if (payload != null && payload.containsKey("eventType")) {
+            return objectMapper.writeValueAsString(payload);
+        }
+        return outboxToJson(eventType, paymentId, payload);
+    }
+
+    /** Mappa envelope PaymentEvent da salvare nella colonna jsonb outbox (CDC-friendly). */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> toOutboxEnvelope(String eventType, UUID paymentId, Map<String, Object> payload) {
+        PaymentEvent event = fromOutbox(eventType, paymentId, payload);
+        return objectMapper.convertValue(event, Map.class);
+    }
 }

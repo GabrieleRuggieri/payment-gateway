@@ -54,7 +54,8 @@ public class OutboxRelayService {
     private void relaySingle(PaymentOutbox event) {
         try {
             event.markProcessing();
-            String json = eventMapper.outboxToJson(event.getEventType(), event.getAggregateId(), event.getPayload());
+            String json = eventMapper.outboxRowToJson(
+                    event.getEventType(), event.getAggregateId(), event.getPayload());
 
             kafkaTemplate.send(event.getTopic(), event.getPartitionKey(), json)
                     .get(5, TimeUnit.SECONDS);

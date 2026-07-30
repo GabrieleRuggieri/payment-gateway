@@ -6,6 +6,7 @@ import com.finance.payment.api.dto.PaymentResponse;
 import com.finance.payment.common.event.PaymentEventType;
 import com.finance.payment.common.exception.PaymentNotFoundException;
 import com.finance.payment.common.kafka.TopicConstants;
+import com.finance.payment.config.PaymentEventMapper;
 import com.finance.payment.domain.Payment;
 import com.finance.payment.domain.PaymentAuditEvent;
 import com.finance.payment.domain.PaymentOutbox;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -40,6 +42,7 @@ public class PaymentService {
     private final PaymentAuditEventRepository auditEventRepository;
     private final IdempotencyService idempotencyService;
     private final MerchantAccessGuard merchantAccessGuard;
+    private final PaymentEventMapper eventMapper;
 
     /**
      * Crea un pagamento in modo idempotente e accoda un evento outbox {@link PaymentEventType#PAYMENT_INITIATED}.
@@ -67,16 +70,26 @@ public class PaymentService {
         });
     }
 
-    /** Aggiorna l'aggregato dopo autorizzazione riuscita. */
+    /** Aggiorna l'aggregato dopo autorizzazione riuscita e memorizza il riferimento processore. */
     @Transactional
-    public void handleAuthorized(UUID paymentId) {
+    public void handleAuthorized(UUID paymentId, String authorizationCode) {
         Payment payment = findPaymentOrThrow(paymentId);
         PaymentStatus old = payment.getStatus();
         payment.authorize();
+        if (authorizationCode != null && !authorizationCode.isBlank() && !"null".equals(authorizationCode)) {
+            payment.putMetadata("processorPaymentIntentId", authorizationCode);
+            payment.putMetadata("authorizationCode", authorizationCode);
+        }
 
         saveOutboxEvent(paymentId, PaymentEventType.PAYMENT_AUTHORIZED, buildPayload(payment));
         appendAudit(payment, PaymentEventType.PAYMENT_AUTHORIZED.wireName(), old, PaymentStatus.AUTHORIZED, null);
-        log.info("Payment authorized: id={}", paymentId);
+        log.info("Payment authorized: id={} processorRef={}", paymentId, authorizationCode);
+    }
+
+    /** Compat: authorize senza codice processore. */
+    @Transactional
+    public void handleAuthorized(UUID paymentId) {
+        handleAuthorized(paymentId, null);
     }
 
     /** Segna il pagamento come fallito in fase di autorizzazione. */
@@ -140,7 +153,7 @@ public class PaymentService {
         log.warn("Settlement failed for payment {}: {}", paymentId, reason);
     }
 
-    /** Aggiorna l'aggregato dopo rimborso completato. */
+    /** Aggiorna l'aggregato dopo rimborso completato (da CAPTURED o SETTLED). */
     @Transactional
     public void handleRefunded(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -156,6 +169,31 @@ public class PaymentService {
         log.info("Payment refunded: id={}", paymentId);
     }
 
+    /** Segna il pagamento come DISPUTED (webhook Stripe charge.dispute.*). */
+    @Transactional
+    public void handleDisputed(UUID paymentId, String reason) {
+        Payment payment = findPaymentOrThrow(paymentId);
+        if (payment.getStatus() == PaymentStatus.DISPUTED) {
+            log.debug("Ignoring duplicate PAYMENT_DISPUTED for payment {}", paymentId);
+            return;
+        }
+        PaymentStatus old = payment.getStatus();
+        payment.dispute();
+
+        Map<String, Object> auditPayload = reason != null ? Map.of("reason", reason) : Map.of();
+        saveOutboxEvent(paymentId, PaymentEventType.PAYMENT_DISPUTED, buildPayload(payment));
+        appendAudit(payment, PaymentEventType.PAYMENT_DISPUTED.wireName(), old, PaymentStatus.DISPUTED, auditPayload);
+        log.warn("Payment disputed: id={} reason={}", paymentId, reason);
+    }
+
+    /** Risolve un pagamento dal PaymentIntent Stripe salvato in metadata. */
+    public Optional<Payment> findByProcessorPaymentIntentId(String paymentIntentId) {
+        if (paymentIntentId == null || paymentIntentId.isBlank()) {
+            return Optional.empty();
+        }
+        return paymentRepository.findByProcessorPaymentIntentId(paymentIntentId);
+    }
+
     /** Recupera un pagamento verificando l'appartenenza al merchant autenticato. */
     public PaymentResponse getPayment(UUID paymentId) {
         Payment payment = findPaymentOrThrow(paymentId);
@@ -169,10 +207,13 @@ public class PaymentService {
     }
 
     private void saveOutboxEvent(UUID paymentId, PaymentEventType eventType, Map<String, Object> payload) {
+        // Envelope PaymentEvent completo in payload → compatibile con Debezium Outbox Event Router
+        // (table.expand.json.payload=true) e con il relay polling.
+        Map<String, Object> envelope = eventMapper.toOutboxEnvelope(eventType.wireName(), paymentId, payload);
         outboxRepository.save(PaymentOutbox.of(
                 paymentId,
                 eventType.wireName(),
-                payload,
+                envelope,
                 TopicConstants.PAYMENT_EVENTS
         ));
     }

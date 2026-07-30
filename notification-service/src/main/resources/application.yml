@@ -22,6 +22,11 @@ notification:
     default-secret: whsec_demo_payment_gateway_local
     retry-delay-ms: 5000
 
+payment:
+  internal:
+    token: ${INTERNAL_SERVICE_TOKEN:}
+    header: X-Internal-Token
+
 server:
   port: 8080
 
@@ -29,4 +34,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health
+  endpoint:
+    health:
+      show-details: never
