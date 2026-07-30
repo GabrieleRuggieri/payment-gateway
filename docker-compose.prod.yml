@@ -1,0 +1,174 @@
+# Overlay prod-like: resource limits, restart policy, observability stack.
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Stripe (opzionale):
+#   PAYMENT_PROCESSOR_PROVIDER=stripe STRIPE_API_KEY=sk_test_... \
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+x-app-resources: &app-resources
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 768M
+      reservations:
+        cpus: "0.25"
+        memory: 256M
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  postgres:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-payments_pass}
+
+  kafka:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:9092:9092"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1280M
+
+  redis:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  kafka-ui:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:8090:8080"
+
+  payment-service:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker,otel
+      OTEL_SERVICE_NAME: payment-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+
+  authorization-service:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:8081:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker,otel
+      PAYMENT_PROCESSOR_PROVIDER: ${PAYMENT_PROCESSOR_PROVIDER:-mock}
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      OTEL_SERVICE_NAME: authorization-service
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+
+  capture-service:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker,otel
+      PAYMENT_PROCESSOR_PROVIDER: ${PAYMENT_PROCESSOR_PROVIDER:-mock}
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      OTEL_SERVICE_NAME: capture-service
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+
+  settlement-service:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:8083:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker,otel
+      PAYMENT_PROCESSOR_PROVIDER: ${PAYMENT_PROCESSOR_PROVIDER:-mock}
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      OTEL_SERVICE_NAME: settlement-service
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+
+  notification-service:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:8084:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker,otel
+      OTEL_SERVICE_NAME: notification-service
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+
+  webhook-receiver:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:8099:8099"
+
+  payment-ui:
+    <<: *app-resources
+    ports:
+      - "127.0.0.1:3000:80"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./ops/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    depends_on:
+      - tempo
+      - prometheus
+
+  tempo:
+    image: grafana/tempo:2.7.1
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./ops/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    restart: unless-stopped
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - prometheus
+      - tempo
+
+volumes:
+  tempo_data:
+  prometheus_data:
+  grafana_data:
