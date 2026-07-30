@@ -1,54 +1,54 @@
 /**
- * Layout pagina con navigazione sticky, main e footer.
+ * Layout: skip-link, nav minimale, main, footer.
  */
 import { ReactNode } from 'react';
 
-/** Contenuto figlio da renderizzare nel main. */
 interface LayoutProps {
   children: ReactNode;
 }
 
-/** Barra di navigazione superiore sticky con link a risorse esterne. */
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="page">
+      <a className="skip-link" href="#composer">
+        Skip to payment composer
+      </a>
+
       <header className="nav-shell">
         <div className="nav">
-          <a className="nav__brand" href="/">
-            <span className="nav__logo" aria-hidden>
-              <span className="nav__logo-dots" />
-            </span>
+          <a className="nav__brand" href="/" aria-label="Payment Gateway home">
+            <span className="nav__mark" aria-hidden="true" />
             <span className="nav__name">Payment Gateway</span>
           </a>
 
           <nav className="nav__center" aria-label="Resources">
             <a href="http://localhost:8080/swagger-ui.html" target="_blank" rel="noreferrer">
-              API Docs
+              API
             </a>
             <a href="http://localhost:8090" target="_blank" rel="noreferrer">
-              Kafka UI
+              Kafka
             </a>
+            <a href="#workspace">Workspace</a>
             <a href="#collection">Collection</a>
           </nav>
 
-          <div className="nav__actions">
-            <a className="nav__link" href="http://localhost:8080/actuator/health" target="_blank" rel="noreferrer">
-              Health
-            </a>
-          </div>
+          <a
+            className="nav__link"
+            href="http://localhost:8080/actuator/health"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Health
+          </a>
         </div>
       </header>
 
-      <main>{children}</main>
+      <main id="main">{children}</main>
 
       <footer className="footer">
-        <span>Made for demo</span>
-        <span className="footer__sep">·</span>
-        <span>Spring Boot 4</span>
-        <span className="footer__sep">·</span>
-        <span>Kafka KRaft</span>
-        <span className="footer__sep">·</span>
-        <span>PostgreSQL · Redis</span>
+        <span>Saga · Outbox · Idempotency</span>
+        <span className="footer__sep">/</span>
+        <span>Stripe test · Kafka KRaft</span>
       </footer>
     </div>
   );

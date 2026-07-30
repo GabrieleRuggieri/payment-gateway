@@ -71,8 +71,10 @@ public class SettlementEventConsumer {
         UUID merchantId = UUID.fromString(event.getPayload().get("merchantId").toString());
         BigDecimal amount = new BigDecimal(event.getPayload().get("amount").toString());
         String currency = event.getPayload().get("currency").toString();
+        Object cap = event.getPayload().get("captureReference");
+        String captureReference = cap != null ? cap.toString() : null;
 
-        var result = settlementService.settle(paymentId, merchantId, amount, currency);
+        var result = settlementService.settle(paymentId, merchantId, amount, currency, captureReference);
         Map<String, Object> payload = new HashMap<>(event.getPayload());
 
         PaymentEventType outcome = result.isSuccess()
@@ -91,8 +93,10 @@ public class SettlementEventConsumer {
     private void handleSettlementFailed(PaymentEvent event, UUID paymentId) throws Exception {
         BigDecimal amount = new BigDecimal(event.getPayload().get("amount").toString());
         String currency = event.getPayload().get("currency").toString();
+        Object cap = event.getPayload().get("captureReference");
+        String captureReference = cap != null ? cap.toString() : null;
 
-        var refund = settlementService.refund(paymentId, amount, currency);
+        var refund = settlementService.refund(paymentId, amount, currency, captureReference);
         Map<String, Object> payload = new HashMap<>(event.getPayload());
         payload.put("refundReference", refund.getRefundReference());
 

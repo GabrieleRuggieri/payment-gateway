@@ -1,6 +1,13 @@
 spring:
   kafka:
     bootstrap-servers: kafka:29092
-  data:
-    redis:
-      host: redis
+  datasource:
+    url: jdbc:postgresql://postgres:5432/payments
+    username: ${SPRING_DATASOURCE_USERNAME:payments_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:payments_pass}
+
+notification:
+  webhook:
+    default-url: ${NOTIFICATION_WEBHOOK_DEFAULT_URL:http://webhook-receiver:8099/webhooks/payments}
+    force-default-url: true
+    default-secret: ${NOTIFICATION_WEBHOOK_SECRET:whsec_demo_payment_gateway_local}

@@ -218,7 +218,7 @@ export const TEST_SECTIONS: TestSection[] = [
     id: 'failures',
     eyebrow: 'Saga failures',
     title: 'Failure scenarios',
-    description: 'Payments that fail during authorization or settlement.',
+    description: 'Payments that fail during authorization, capture or settlement.',
     variant: 'gray',
     tests: [
       {
@@ -226,17 +226,35 @@ export const TEST_SECTIONS: TestSection[] = [
         name: 'Settlement limit exceeded',
         method: 'POST',
         path: '/api/v1/payments',
-        description: 'Body: €9999.00 EUR — passes authorization (≤9999) but mock acquirer rejects amounts above 4999.99.',
+        description: 'Body: €5500.00 EUR — auth+capture OK; mock acquirer rejects amounts above 4999.99 → REFUNDED.',
         expected: 'POST 200 (accepted) → saga compensates → REFUNDED',
         run: async (ctx) => {
           const created = await createPayment({
             merchantId: ctx.merchantId,
-            amount: '9999.00',
+            amount: '5500.00',
             currency: 'EUR',
             idempotencyKey: crypto.randomUUID(),
             description: 'Test: settlement limit exceeded',
           });
           return assertSagaOutcome(created, 'REFUNDED');
+        },
+      },
+      {
+        id: 'fail-capture-limit',
+        name: 'Capture limit exceeded',
+        method: 'POST',
+        path: '/api/v1/payments',
+        description: 'Body: €9000.00 EUR — auth OK (≤9999); mock capture rejects above 8999 → FAILED + void.',
+        expected: 'POST 200 (accepted) → saga ends FAILED',
+        run: async (ctx) => {
+          const created = await createPayment({
+            merchantId: ctx.merchantId,
+            amount: '9000.00',
+            currency: 'EUR',
+            idempotencyKey: crypto.randomUUID(),
+            description: 'Test: capture limit exceeded',
+          });
+          return assertSagaOutcome(created, 'FAILED');
         },
       },
       {

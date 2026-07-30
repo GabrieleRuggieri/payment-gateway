@@ -22,11 +22,10 @@ public class AuthorizationService {
 
     private final ExternalProcessorClient processorClient;
 
-    /**
-     * Invoca il processore per autorizzare (bloccare) l'importo del pagamento.
-     */
-    public AuthorizationResult authorize(UUID paymentId, BigDecimal amount, String currency) {
-        return processorClient.authorize(paymentId, amount, currency);
+    /** Invoca il processore per autorizzare (bloccare) l'importo del pagamento. */
+    public AuthorizationResult authorize(
+            UUID paymentId, BigDecimal amount, String currency, String paymentMethodId) {
+        return processorClient.authorize(paymentId, amount, currency, paymentMethodId);
     }
 
     /**

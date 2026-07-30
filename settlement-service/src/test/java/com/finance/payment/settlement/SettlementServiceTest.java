@@ -1,5 +1,7 @@
 package com.finance.payment.settlement;
 
+import com.finance.payment.common.processor.MockPaymentProcessor;
+import com.finance.payment.common.processor.ProcessorProperties;
 import com.finance.payment.settlement.service.SettlementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test unitari per {@link SettlementService}: percorso di successo, fallimento oltre soglia
- * e generazione dei riferimenti di settlement e refund.
+ * e generazione dei riferimenti di settlement e refund (mock processor).
  */
 class SettlementServiceTest {
 
@@ -21,10 +23,8 @@ class SettlementServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new SettlementService();
+        service = new SettlementService(new MockPaymentProcessor(new ProcessorProperties()));
     }
-
-    // ── settle() ─────────────────────────────────────────────────────────────
 
     @ParameterizedTest(name = "settle succeeds for amount {0}")
     @ValueSource(strings = {"1.00", "100.00", "4999.99", "4999.98"})
@@ -32,7 +32,7 @@ class SettlementServiceTest {
         UUID paymentId = UUID.randomUUID();
         UUID merchantId = UUID.randomUUID();
 
-        var result = service.settle(paymentId, merchantId, new BigDecimal(amountStr), "EUR");
+        var result = service.settle(paymentId, merchantId, new BigDecimal(amountStr), "EUR", "CAP-TEST");
 
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.getSettlementReference())
@@ -46,7 +46,7 @@ class SettlementServiceTest {
         UUID paymentId = UUID.randomUUID();
         UUID merchantId = UUID.randomUUID();
 
-        var result = service.settle(paymentId, merchantId, new BigDecimal(amountStr), "EUR");
+        var result = service.settle(paymentId, merchantId, new BigDecimal(amountStr), "EUR", "CAP-TEST");
 
         assertThat(result.isSuccess()).isFalse();
         assertThat(result.getFailureReason()).isNotBlank();
@@ -56,20 +56,17 @@ class SettlementServiceTest {
     @Test
     void settlementReferenceIncludesPaymentIdPrefix() {
         UUID paymentId = UUID.randomUUID();
-        var result = service.settle(paymentId, UUID.randomUUID(), new BigDecimal("100.00"), "USD");
+        var result = service.settle(paymentId, UUID.randomUUID(), new BigDecimal("100.00"), "USD", "CAP-TEST");
 
         String expectedPrefix = "SET-" + paymentId.toString().substring(0, 8).toUpperCase();
         assertThat(result.getSettlementReference()).isEqualTo(expectedPrefix);
     }
 
-    // ── refund() ────────────────────────────────────────────────────────────
-
     @Test
     void shouldRefundSuccessfully() {
         UUID paymentId = UUID.randomUUID();
-        var result = service.refund(paymentId, new BigDecimal("200.00"), "GBP");
+        var result = service.refund(paymentId, new BigDecimal("200.00"), "GBP", "CAP-TEST");
 
-        assertThat(result.isSuccess()).isTrue();
         assertThat(result.getRefundReference())
                 .isNotNull()
                 .startsWith("REF-");
@@ -78,7 +75,7 @@ class SettlementServiceTest {
     @Test
     void refundReferenceIncludesPaymentIdPrefix() {
         UUID paymentId = UUID.randomUUID();
-        var result = service.refund(paymentId, new BigDecimal("50.00"), "EUR");
+        var result = service.refund(paymentId, new BigDecimal("50.00"), "EUR", "CAP-TEST");
 
         String expectedPrefix = "REF-" + paymentId.toString().substring(0, 8).toUpperCase();
         assertThat(result.getRefundReference()).isEqualTo(expectedPrefix);

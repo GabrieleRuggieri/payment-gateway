@@ -1,6 +1,9 @@
 package com.finance.payment.settlement.service;
 
+import com.finance.payment.common.processor.PaymentProcessor;
+import com.finance.payment.common.processor.ProcessorResult;
 import lombok.Builder;
+import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -9,48 +12,45 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Step saga di settlement: trasferisce i fondi catturati al merchant (API acquirer mockata).
- *
- * <p>Soglie di fallimento (demo):
- * <ul>
- *   <li>importo &gt; 9 999,99 — l'autorizzazione fallisce già upstream; il settlement non viene raggiunto</li>
- *   <li>importo &gt; 4 999,99 — il settlement fallisce → attiva la compensazione {@code SETTLEMENT_FAILED}
- *       (void capture + rimborso), esercitando l'intero percorso di compensazione</li>
- *   <li>importo ≤ 4 999,99 — settlement riuscito</li>
- * </ul>
+ * Step saga di settlement: trasferisce / conferma i fondi al merchant (mock o verifica Stripe).
  */
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class SettlementService {
 
-    private static final BigDecimal SETTLEMENT_FAIL_THRESHOLD = new BigDecimal("4999.99");
+    private final PaymentProcessor paymentProcessor;
 
     /**
      * Regola i fondi catturati sul conto merchant.
-     * Restituisce un esito negativo per importi superiori a {@value #SETTLEMENT_FAIL_THRESHOLD}
-     * per esercitare il ramo di compensazione {@code SETTLEMENT_FAILED → PAYMENT_REFUNDED}.
+     *
+     * @param captureReference reference della capture (con Stripe è tipicamente il PaymentIntent id {@code pi_…})
      */
-    public SettlementResult settle(UUID paymentId, UUID merchantId, BigDecimal amount, String currency) {
+    public SettlementResult settle(
+            UUID paymentId, UUID merchantId, BigDecimal amount, String currency, String captureReference) {
         log.info("Settling payment {} merchant {} amount {} {}", paymentId, merchantId, amount, currency);
-        if (amount.compareTo(SETTLEMENT_FAIL_THRESHOLD) > 0) {
-            log.warn("Settlement rejected for payment {} — amount {} exceeds mock threshold {}",
-                    paymentId, amount, SETTLEMENT_FAIL_THRESHOLD);
-            return SettlementResult.failure("Acquirer rejected: amount exceeds settlement limit");
+        ProcessorResult result = paymentProcessor.settle(paymentId, merchantId, amount, currency, captureReference);
+        if (!result.success()) {
+            return SettlementResult.failure(result.failureReason());
         }
-        return SettlementResult.success("SET-" + paymentId.toString().substring(0, 8).toUpperCase());
+        return SettlementResult.success(result.reference());
     }
 
     /**
      * Compensazione: rimborsa il cliente quando il settlement fallisce dopo una capture riuscita.
      *
-     * @return riferimento rimborso per la pubblicazione dell'evento downstream
+     * @param captureReference PaymentIntent o charge da rimborsare
      */
-    public RefundResult refund(UUID paymentId, BigDecimal amount, String currency) {
+    public RefundResult refund(UUID paymentId, BigDecimal amount, String currency, String captureReference) {
         log.info("Refunding payment {} amount {} {}", paymentId, amount, currency);
-        return RefundResult.success("REF-" + paymentId.toString().substring(0, 8).toUpperCase());
+        ProcessorResult result = paymentProcessor.refund(paymentId, amount, currency, captureReference);
+        if (!result.success()) {
+            throw new IllegalStateException("Refund failed: " + result.failureReason());
+        }
+        return RefundResult.success(result.reference());
     }
 
-    /** Esito di un'operazione di settlement. */
+    /** Esito settlement. */
     @Value
     @Builder
     public static class SettlementResult {
@@ -67,16 +67,14 @@ public class SettlementService {
         }
     }
 
-    /** Esito di un'operazione di rimborso. */
+    /** Esito rimborso. */
     @Value
     @Builder
     public static class RefundResult {
-        boolean success;
         String refundReference;
-        String failureReason;
 
         static RefundResult success(String reference) {
-            return RefundResult.builder().success(true).refundReference(reference).build();
+            return RefundResult.builder().refundReference(reference).build();
         }
     }
 }

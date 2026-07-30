@@ -33,24 +33,24 @@ class AuthorizationServiceTest {
     void shouldDelegateAuthorizeToProcessor() {
         UUID paymentId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
-        when(processorClient.authorize(paymentId, amount, "EUR"))
+        when(processorClient.authorize(paymentId, amount, "EUR", null))
                 .thenReturn(AuthorizationResult.success("AUTH-ABCD1234"));
 
-        AuthorizationResult result = service.authorize(paymentId, amount, "EUR");
+        AuthorizationResult result = service.authorize(paymentId, amount, "EUR", null);
 
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.getAuthorizationCode()).isEqualTo("AUTH-ABCD1234");
-        verify(processorClient).authorize(paymentId, amount, "EUR");
+        verify(processorClient).authorize(paymentId, amount, "EUR", null);
     }
 
     @Test
     void shouldPropagateFailureFromProcessor() {
         UUID paymentId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("99.00");
-        when(processorClient.authorize(paymentId, amount, "USD"))
+        when(processorClient.authorize(paymentId, amount, "USD", "pm_card_visa"))
                 .thenReturn(AuthorizationResult.failure("Processor declined"));
 
-        AuthorizationResult result = service.authorize(paymentId, amount, "USD");
+        AuthorizationResult result = service.authorize(paymentId, amount, "USD", "pm_card_visa");
 
         assertThat(result.isSuccess()).isFalse();
         assertThat(result.getFailureReason()).isEqualTo("Processor declined");

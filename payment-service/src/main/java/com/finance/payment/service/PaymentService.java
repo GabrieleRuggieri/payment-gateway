@@ -204,6 +204,12 @@ public class PaymentService {
         if (payment.getDescription() != null) {
             payload.put("description", payment.getDescription());
         }
+        if (payment.getMetadata() != null) {
+            Object paymentMethodId = payment.getMetadata().get("paymentMethodId");
+            if (paymentMethodId != null) {
+                payload.put("paymentMethodId", paymentMethodId.toString());
+            }
+        }
         return payload;
     }
 }
