@@ -28,7 +28,9 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        if (!rateLimitProperties.isEnabled() || !request.getRequestURI().startsWith("/api/")) {
+        if (!rateLimitProperties.isEnabled()
+                || !request.getRequestURI().startsWith("/api/")
+                || request.getRequestURI().startsWith("/api/v1/stripe/webhooks")) {
             filterChain.doFilter(request, response);
             return;
         }

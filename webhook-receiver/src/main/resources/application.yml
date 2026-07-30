@@ -9,7 +9,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+payment:
+  internal:
+    token: ${INTERNAL_SERVICE_TOKEN:}
+    header: X-Internal-Token
 
 logging:
   level:

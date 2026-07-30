@@ -9,33 +9,40 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/** Configurazione Spring Security: autenticazione API key e rate limiting. */
+/** Configurazione Spring Security: API key, rate limit, token interno su endpoint sensibili. */
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties({PaymentSecurityProperties.class, RateLimitProperties.class})
+@EnableConfigurationProperties({
+        PaymentSecurityProperties.class,
+        RateLimitProperties.class,
+        InternalServiceProperties.class
+})
 public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
-            ApiRateLimitFilter apiRateLimitFilter) throws Exception {
+            ApiRateLimitFilter apiRateLimitFilter,
+            InternalTokenFilter internalTokenFilter) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/api/v1/stripe/webhooks").permitAll()
                         .requestMatchers(
-                                "/actuator/health",
                                 "/actuator/prometheus",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/api-docs",
                                 "/api-docs/**"
-                        ).permitAll()
+                        ).permitAll() // InternalTokenFilter applica il gate quando configurato
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
+                .addFilterBefore(internalTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(apiRateLimitFilter, ApiKeyAuthenticationFilter.class);
 
@@ -54,5 +61,10 @@ public class SecurityConfig {
             org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
             RateLimitProperties rateLimitProperties) {
         return new ApiRateLimitFilter(redisTemplate, rateLimitProperties);
+    }
+
+    @Bean
+    InternalTokenFilter internalTokenFilter(InternalServiceProperties properties) {
+        return new InternalTokenFilter(properties);
     }
 }

@@ -53,27 +53,45 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,prometheus
   endpoint:
     health:
-      show-details: when_authorized
+      show-details: never
+      probes:
+        enabled: true
 
 payment:
   security:
     enabled: true
     api-key-header: X-Api-Key
+  internal:
+    token: ${INTERNAL_SERVICE_TOKEN:}
+    header: X-Internal-Token
   rate-limit:
     enabled: true
     requests-per-minute: 120
+  stripe:
+    webhooks-enabled: ${STRIPE_WEBHOOKS_ENABLED:false}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  processor:
+    provider: ${PAYMENT_PROCESSOR_PROVIDER:mock}
+    stripe:
+      api-key: ${STRIPE_API_KEY:}
+      default-payment-method: ${STRIPE_DEFAULT_PAYMENT_METHOD:pm_card_visa}
   cleanup:
     idempotency-cron: "0 15 * * * *"
     saga-cron: "0 30 3 * * *"
     saga-retention-days: 30
   outbox:
     relay:
-      enabled: true
+      # Disabilitare quando Debezium CDC è attivo (vedi docker-compose).
+      enabled: ${PAYMENT_OUTBOX_RELAY_ENABLED:true}
       batch-size: 100
       fixed-delay-ms: 1000
+    cdc-ack:
+      enabled: ${PAYMENT_OUTBOX_CDC_ACK_ENABLED:false}
+      fixed-delay-ms: 3000
+      min-age-seconds: 2
   idempotency:
     ttl-hours: 24
   kafka:

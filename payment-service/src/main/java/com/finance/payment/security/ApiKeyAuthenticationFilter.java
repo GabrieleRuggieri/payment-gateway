@@ -26,7 +26,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 || path.startsWith("/actuator/prometheus")
                 || path.startsWith("/swagger-ui")
                 || path.equals("/swagger-ui.html")
-                || path.startsWith("/api-docs");
+                || path.startsWith("/api-docs")
+                || path.equals("/api/v1/stripe/webhooks");
     }
 
     @Override
