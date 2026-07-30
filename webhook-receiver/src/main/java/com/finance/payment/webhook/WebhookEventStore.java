@@ -18,7 +18,11 @@ public class WebhookEventStore {
 
     /** Aggiunge un payload webhook mantenendo la finestra di eventi più recenti. */
     public void add(String payload) {
-        events.addFirst(new StoredWebhook(Instant.now(), payload));
+        add(payload, null, null, null);
+    }
+
+    public void add(String payload, String signature, String webhookId, String eventType) {
+        events.addFirst(new StoredWebhook(Instant.now(), payload, signature, webhookId, eventType));
         while (events.size() > MAX_EVENTS) {
             events.removeLast();
         }
@@ -30,11 +34,13 @@ public class WebhookEventStore {
     }
 
     /**
-     * Webhook memorizzato con timestamp di ricezione.
-     *
-     * @param receivedAt istante di arrivo
-     * @param payload    corpo JSON grezzo
+     * Webhook memorizzato con timestamp e metadati di firma.
      */
-    public record StoredWebhook(Instant receivedAt, String payload) {
+    public record StoredWebhook(
+            Instant receivedAt,
+            String payload,
+            String signature,
+            String webhookId,
+            String eventType) {
     }
 }

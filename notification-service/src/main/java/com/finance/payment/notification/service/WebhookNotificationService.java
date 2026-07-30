@@ -2,21 +2,29 @@ package com.finance.payment.notification.service;
 
 import com.finance.payment.common.event.PaymentEvent;
 import com.finance.payment.common.event.PaymentEventType;
+import com.finance.payment.notification.webhook.MerchantWebhookRepository;
+import com.finance.payment.notification.webhook.WebhookDeliveryRepository;
+import com.finance.payment.notification.webhook.WebhookSigner;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Set;
+import java.util.UUID;
 
 /**
- * Invia webhook ai merchant per eventi terminali e milestone della saga.
- * <p>
- * La deduplicazione usa Redis ({@code SET NX} con TTL) — appropriata per le notifiche dove
- * webhook duplicati sono fastidiosi ma non pericolosi finanziariamente. La dedup critica resta su PostgreSQL.
+ * Accoda webhook merchant su PostgreSQL e li consegna con HMAC + retry esponenziale fino a DLQ ({@code DEAD}).
  */
 @Service
 @RequiredArgsConstructor
@@ -33,40 +41,109 @@ public class WebhookNotificationService {
             PaymentEventType.SETTLEMENT_FAILED.wireName()
     );
 
-    private static final Duration DEDUP_TTL = Duration.ofHours(24);
-
     private final RestTemplate restTemplate;
-    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final MerchantWebhookRepository merchantWebhookRepository;
+    private final WebhookDeliveryRepository deliveryRepository;
 
     @Value("${notification.webhook.default-url}")
     private String defaultWebhookUrl;
 
-    /**
-     * Invia via POST l'evento JSON al webhook del merchant se non già consegnato per la coppia pagamento+evento.
-     */
+    @Value("${notification.webhook.force-default-url:false}")
+    private boolean forceDefaultUrl;
+
+    @Value("${notification.webhook.default-secret:whsec_demo_payment_gateway_local}")
+    private String defaultSecret;
+
+    /** Accoda l'evento per consegna asincrona (dedup su payment_id + event_type). */
     public void notifyMerchant(PaymentEvent event) {
         if (!NOTIFY_EVENT_TYPES.contains(event.getEventType())) {
             log.trace("Skipping non-notifiable event {}", event.getEventType());
             return;
         }
 
-        String dedupKey = "webhook:%s:%s".formatted(event.getPaymentId(), event.getEventType());
-        Boolean firstDelivery = redisTemplate.opsForValue()
-                .setIfAbsent(dedupKey, "1", DEDUP_TTL);
+        UUID merchantId = resolveMerchantId(event);
+        UUID paymentId = event.getPaymentId();
 
-        if (Boolean.FALSE.equals(firstDelivery)) {
-            log.debug("Webhook already sent for {}", dedupKey);
-            return;
-        }
-
-        log.info("Sending webhook for payment {} event {}", event.getPaymentId(), event.getEventType());
+        var merchantHook = merchantWebhookRepository.findActive(merchantId);
+        String url = forceDefaultUrl || merchantHook.isEmpty()
+                ? defaultWebhookUrl
+                : merchantHook.get().webhookUrl();
 
         try {
-            restTemplate.postForEntity(defaultWebhookUrl, event, Void.class);
+            String payloadJson = objectMapper.writeValueAsString(event);
+            boolean enqueued = deliveryRepository.enqueue(
+                    merchantId, paymentId, event.getEventType(), payloadJson, url);
+            if (!enqueued) {
+                log.debug("Webhook already queued/delivered for {} {}", paymentId, event.getEventType());
+                return;
+            }
+            log.info("Queued webhook for payment {} event {} → {}", paymentId, event.getEventType(), url);
         } catch (Exception e) {
-            redisTemplate.delete(dedupKey);
-            log.warn("Webhook delivery failed for {}: {}", dedupKey, e.getMessage());
-            throw e;
+            log.warn("Failed to enqueue webhook for {}: {}", paymentId, e.getMessage());
+            throw new IllegalStateException(e);
         }
+    }
+
+    /** Retry periodico delle delivery PENDING scadute. */
+    @Scheduled(fixedDelayString = "${notification.webhook.retry-delay-ms:5000}")
+    @Transactional
+    public void retryPending() {
+        for (WebhookDeliveryRepository.Delivery delivery : deliveryRepository.findDue(20)) {
+            String secret = merchantWebhookRepository.findActive(delivery.merchantId())
+                    .map(MerchantWebhookRepository.MerchantWebhook::webhookSecret)
+                    .orElse(defaultSecret);
+            deliverOne(delivery, secret);
+        }
+    }
+
+    private void deliverOne(WebhookDeliveryRepository.Delivery delivery, String secret) {
+        long ts = Instant.now().getEpochSecond();
+        String signature = WebhookSigner.sign(secret, ts, delivery.payloadJson());
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.add("X-Webhook-Signature", signature);
+            headers.add("X-Webhook-Id", String.valueOf(delivery.id()));
+            headers.add("X-Payment-Id", delivery.paymentId().toString());
+            headers.add("X-Event-Type", delivery.eventType());
+
+            ResponseEntity<Void> response = restTemplate.postForEntity(
+                    delivery.destinationUrl(),
+                    new HttpEntity<>(delivery.payloadJson(), headers),
+                    Void.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                deliveryRepository.markDelivered(delivery.id(), signature);
+                log.info("Webhook delivered id={} payment={} event={}",
+                        delivery.id(), delivery.paymentId(), delivery.eventType());
+                return;
+            }
+            scheduleRetryOrDead(delivery, "HTTP " + response.getStatusCode().value());
+        } catch (Exception e) {
+            scheduleRetryOrDead(delivery, e.getMessage());
+        }
+    }
+
+    private void scheduleRetryOrDead(WebhookDeliveryRepository.Delivery delivery, String error) {
+        int attempts = delivery.attempts() + 1;
+        if (attempts >= delivery.maxAttempts()) {
+            deliveryRepository.markDead(delivery.id(), error);
+            log.error("Webhook DEAD id={} payment={} error={}", delivery.id(), delivery.paymentId(), error);
+            return;
+        }
+        long delaySec = Math.min(900, 5L * (1L << Math.min(attempts - 1, 8)));
+        Instant next = Instant.now().plus(Duration.ofSeconds(delaySec));
+        deliveryRepository.markRetry(delivery.id(), attempts, next, error);
+        log.warn("Webhook retry id={} attempt={} next={} error={}",
+                delivery.id(), attempts, next, error);
+    }
+
+    private UUID resolveMerchantId(PaymentEvent event) {
+        Object raw = event.getPayload() != null ? event.getPayload().get("merchantId") : null;
+        if (raw == null) {
+            throw new IllegalArgumentException("merchantId missing in event payload");
+        }
+        return UUID.fromString(raw.toString());
     }
 }
