@@ -37,6 +37,7 @@
         <resilience4j.version>2.3.0</resilience4j.version>
         <testcontainers.version>1.21.0</testcontainers.version>
         <springdoc.version>3.0.3</springdoc.version>
+        <stripe.version>28.4.0</stripe.version>
     </properties>
 
     <dependencyManagement>
@@ -67,6 +68,12 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.stripe</groupId>
+                <artifactId>stripe-java</artifactId>
+                <version>${stripe.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

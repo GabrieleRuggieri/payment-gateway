@@ -1,6 +1,9 @@
 package com.finance.payment.capture.service;
 
+import com.finance.payment.common.processor.PaymentProcessor;
+import com.finance.payment.common.processor.ProcessorResult;
 import lombok.Builder;
+import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -9,23 +12,23 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Step saga di capture: conferma l'importo autorizzato con il processore (mockato).
+ * Step saga di capture: conferma l'importo autorizzato con il processore (mock o Stripe).
  */
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class CaptureService {
 
-    /**
-     * Cattura i fondi precedentemente autorizzati. Il mock demo ha successo salvo importo zero.
-     */
+    private final PaymentProcessor paymentProcessor;
+
+    /** Cattura i fondi precedentemente autorizzati. */
     public CaptureResult capture(UUID paymentId, BigDecimal amount, String currency, String authorizationCode) {
         log.info("Capturing payment {} for {} {} (auth={})", paymentId, amount, currency, authorizationCode);
-
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            return CaptureResult.failure("Invalid capture amount");
+        ProcessorResult result = paymentProcessor.capture(paymentId, amount, currency, authorizationCode);
+        if (!result.success()) {
+            return CaptureResult.failure(result.failureReason());
         }
-
-        return CaptureResult.success("CAP-" + paymentId.toString().substring(0, 8).toUpperCase());
+        return CaptureResult.success(result.reference());
     }
 
     /** Esito di un'operazione di capture. */

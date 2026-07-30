@@ -1,6 +1,8 @@
 package com.finance.payment.capture;
 
 import com.finance.payment.capture.service.CaptureService;
+import com.finance.payment.common.processor.MockPaymentProcessor;
+import com.finance.payment.common.processor.ProcessorProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -11,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test unitari per {@link CaptureService}: capture riuscita, formato del riferimento di capture
- * e validazione degli importi non positivi.
+ * e validazione degli importi non positivi (via mock processor).
  */
 class CaptureServiceTest {
 
@@ -19,7 +21,7 @@ class CaptureServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CaptureService();
+        service = new CaptureService(new MockPaymentProcessor(new ProcessorProperties()));
     }
 
     @Test
@@ -56,5 +58,13 @@ class CaptureServiceTest {
 
         assertThat(result.isSuccess()).isFalse();
         assertThat(result.getFailureReason()).isNotBlank();
+    }
+
+    @Test
+    void shouldFailCaptureAboveMockThreshold() {
+        var result = service.capture(UUID.randomUUID(), new BigDecimal("9000.00"), "EUR", "AUTH-1");
+
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getFailureReason()).contains("capture");
     }
 }

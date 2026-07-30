@@ -65,8 +65,10 @@ public class AuthorizationEventConsumer {
     private void handleInitiated(PaymentEvent event, UUID paymentId) throws Exception {
         BigDecimal amount = new BigDecimal(event.getPayload().get("amount").toString());
         String currency = event.getPayload().get("currency").toString();
+        Object pm = event.getPayload().get("paymentMethodId");
+        String paymentMethodId = pm != null ? pm.toString() : null;
 
-        var result = authorizationService.authorize(paymentId, amount, currency);
+        var result = authorizationService.authorize(paymentId, amount, currency, paymentMethodId);
 
         Map<String, Object> payload = new HashMap<>(event.getPayload());
         PaymentEventType outcome = result.isSuccess()

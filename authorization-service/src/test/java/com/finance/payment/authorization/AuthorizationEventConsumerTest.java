@@ -24,6 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 /**
@@ -58,12 +59,12 @@ class AuthorizationEventConsumerTest {
         ConsumerRecord<String, String> record = buildRecord(PaymentEventType.PAYMENT_INITIATED, paymentId, payload);
 
         when(dedupService.registerIfNew(anyString(), eq(paymentId), anyString())).thenReturn(true);
-        when(authorizationService.authorize(eq(paymentId), any(BigDecimal.class), eq("EUR")))
+        when(authorizationService.authorize(eq(paymentId), any(BigDecimal.class), eq("EUR"), isNull()))
                 .thenReturn(AuthorizationResult.success("AUTH-ABCD"));
 
         consumer.handlePaymentEvent(record);
 
-        verify(authorizationService).authorize(eq(paymentId), eq(new BigDecimal("150.00")), eq("EUR"));
+        verify(authorizationService).authorize(eq(paymentId), eq(new BigDecimal("150.00")), eq("EUR"), isNull());
         verify(kafkaTemplate).send(anyString(), eq(paymentId.toString()), anyString());
     }
 
@@ -74,7 +75,7 @@ class AuthorizationEventConsumerTest {
                 PaymentEventType.PAYMENT_INITIATED, paymentId, buildPayload(paymentId, "200.00", "USD"));
 
         when(dedupService.registerIfNew(anyString(), eq(paymentId), anyString())).thenReturn(true);
-        when(authorizationService.authorize(any(), any(), any()))
+        when(authorizationService.authorize(any(), any(), any(), any()))
                 .thenReturn(AuthorizationResult.failure("Declined"));
 
         consumer.handlePaymentEvent(record);
@@ -141,7 +142,7 @@ class AuthorizationEventConsumerTest {
                 PaymentEventType.PAYMENT_INITIATED, paymentId, buildPayload(paymentId, "50.00", "EUR"));
 
         when(dedupService.registerIfNew(anyString(), eq(paymentId), anyString())).thenReturn(true);
-        when(authorizationService.authorize(any(), any(), any()))
+        when(authorizationService.authorize(any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("Processor down"));
 
         assertThatThrownBy(() -> consumer.handlePaymentEvent(record))

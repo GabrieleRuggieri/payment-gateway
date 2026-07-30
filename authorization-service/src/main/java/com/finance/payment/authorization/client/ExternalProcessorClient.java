@@ -2,6 +2,8 @@ package com.finance.payment.authorization.client;
 
 import com.finance.payment.authorization.dto.AuthorizationResult;
 import com.finance.payment.common.exception.ProcessorUnavailableException;
+import com.finance.payment.common.processor.PaymentProcessor;
+import com.finance.payment.common.processor.ProcessorResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.decorators.Decorators;
@@ -16,45 +18,42 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Client Resilience4j-wrapped verso un processore di pagamento esterno (mockato per la demo).
- * <p>
- * Regole mock: importi &gt; 9999 restituiscono un rifiuto permanente del processore (nessun retry saga).
+ * Client Resilience4j-wrapped verso {@link PaymentProcessor} (mock locale o Stripe).
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ExternalProcessorClient {
 
+    private final PaymentProcessor paymentProcessor;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final RetryRegistry retryRegistry;
 
-    /**
-     * Autorizza (blocca) i fondi. Sostituire {@link #callProcessor} con un'integrazione HTTP reale.
-     */
-    public AuthorizationResult authorize(UUID paymentId, BigDecimal amount, String currency) {
+    /** Autorizza (blocca) i fondi. */
+    public AuthorizationResult authorize(
+            UUID paymentId, BigDecimal amount, String currency, String paymentMethodId) {
         try {
-            return executeWithResilience(() -> callProcessor(paymentId, amount, currency));
+            ProcessorResult result = executeWithResilience(
+                    () -> paymentProcessor.authorize(paymentId, amount, currency, paymentMethodId));
+            return result.success()
+                    ? AuthorizationResult.success(result.reference())
+                    : AuthorizationResult.failure(result.failureReason());
         } catch (ProcessorUnavailableException e) {
             log.warn("Authorization unavailable for payment {}: {}", paymentId, e.getMessage());
             return AuthorizationResult.failure(e.getMessage());
         }
     }
 
-    /**
-     * Annulla un'autorizzazione precedente — percorso di compensazione quando la capture fallisce.
-     */
+    /** Annulla un'autorizzazione precedente — percorso di compensazione quando la capture fallisce. */
     public void voidAuthorization(UUID paymentId, String authorizationCode) {
-        executeWithResilience(() -> {
-            log.info("Processor void OK payment={} authCode={}", paymentId, authorizationCode);
-            return AuthorizationResult.success("VOID-" + paymentId.toString().substring(0, 8));
-        });
+        executeWithResilience(() -> paymentProcessor.voidAuthorization(paymentId, authorizationCode));
     }
 
-    private AuthorizationResult executeWithResilience(Supplier<AuthorizationResult> supplier) {
+    private ProcessorResult executeWithResilience(Supplier<ProcessorResult> supplier) {
         CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("payment-processor");
         Retry retry = retryRegistry.retry("payment-processor");
 
-        Supplier<AuthorizationResult> decorated = Decorators
+        Supplier<ProcessorResult> decorated = Decorators
                 .ofSupplier(supplier)
                 .withCircuitBreaker(cb)
                 .withRetry(retry)
@@ -66,16 +65,5 @@ public class ExternalProcessorClient {
             throw new ProcessorUnavailableException(
                     "Processor unavailable after retries: " + e.getMessage(), e);
         }
-    }
-
-    private AuthorizationResult callProcessor(UUID paymentId, BigDecimal amount, String currency) {
-        log.debug("Authorizing payment {} amount {} {}", paymentId, amount, currency);
-
-        if (amount.compareTo(new BigDecimal("9999")) > 0) {
-            return AuthorizationResult.failure("Limit exceeded");
-        }
-
-        return AuthorizationResult.success(
-                "AUTH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
     }
 }

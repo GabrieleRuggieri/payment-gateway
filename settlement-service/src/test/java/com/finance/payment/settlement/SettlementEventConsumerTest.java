@@ -55,7 +55,7 @@ class SettlementEventConsumerTest {
                 PaymentEventType.PAYMENT_CAPTURED, paymentId, buildCapturePayload(paymentId, "300.00", "EUR"));
 
         when(dedupService.registerIfNew(anyString(), eq(paymentId), anyString())).thenReturn(true);
-        when(settlementService.settle(eq(paymentId), any(UUID.class), any(), eq("EUR")))
+        when(settlementService.settle(eq(paymentId), any(UUID.class), any(), eq("EUR"), any()))
                 .thenReturn(SettlementService.SettlementResult.builder()
                         .success(true).settlementReference("SET-ABCD").build());
 
@@ -73,7 +73,7 @@ class SettlementEventConsumerTest {
                 PaymentEventType.PAYMENT_CAPTURED, paymentId, buildCapturePayload(paymentId, "9000.00", "EUR"));
 
         when(dedupService.registerIfNew(anyString(), eq(paymentId), anyString())).thenReturn(true);
-        when(settlementService.settle(any(), any(), any(), any()))
+        when(settlementService.settle(any(), any(), any(), any(), any()))
                 .thenReturn(SettlementService.SettlementResult.builder()
                         .success(false).failureReason("Limit exceeded").build());
 
@@ -93,13 +93,13 @@ class SettlementEventConsumerTest {
                 PaymentEventType.SETTLEMENT_FAILED, paymentId, buildCapturePayload(paymentId, "5500.00", "EUR"));
 
         when(dedupService.registerIfNew(anyString(), eq(paymentId), anyString())).thenReturn(true);
-        when(settlementService.refund(eq(paymentId), any(), eq("EUR")))
+        when(settlementService.refund(eq(paymentId), any(), eq("EUR"), any()))
                 .thenReturn(SettlementService.RefundResult.builder()
-                        .success(true).refundReference("REF-ABCD").build());
+                        .refundReference("REF-ABCD").build());
 
         consumer.handle(record);
 
-        verify(settlementService).refund(eq(paymentId), any(), eq("EUR"));
+        verify(settlementService).refund(eq(paymentId), any(), eq("EUR"), any());
         ArgumentCaptor<String> msgCaptor = ArgumentCaptor.forClass(String.class);
         verify(kafkaTemplate).send(anyString(), anyString(), msgCaptor.capture());
         assertThat(msgCaptor.getValue()).contains("PaymentRefunded");
@@ -138,7 +138,7 @@ class SettlementEventConsumerTest {
                 PaymentEventType.PAYMENT_CAPTURED, paymentId, buildCapturePayload(paymentId, "100.00", "EUR"));
 
         when(dedupService.registerIfNew(anyString(), eq(paymentId), anyString())).thenReturn(true);
-        when(settlementService.settle(any(), any(), any(), any())).thenThrow(new RuntimeException("Timeout"));
+        when(settlementService.settle(any(), any(), any(), any(), any())).thenThrow(new RuntimeException("Timeout"));
 
         assertThatThrownBy(() -> consumer.handle(record))
                 .isInstanceOf(IllegalStateException.class);

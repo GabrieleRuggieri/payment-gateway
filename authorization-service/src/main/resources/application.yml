@@ -27,3 +27,10 @@ management:
 logging:
   level:
     com.finance.payment: INFO
+
+payment:
+  processor:
+    provider: ${PAYMENT_PROCESSOR_PROVIDER:mock}
+    stripe:
+      api-key: ${STRIPE_API_KEY:}
+      default-payment-method: ${STRIPE_DEFAULT_PAYMENT_METHOD:pm_card_visa}
