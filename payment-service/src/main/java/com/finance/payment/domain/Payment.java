@@ -112,8 +112,32 @@ public class Payment {
     }
 
     public void refund() {
-        assertStatus(PaymentStatus.CAPTURED);
+        if (this.status != PaymentStatus.CAPTURED && this.status != PaymentStatus.SETTLED) {
+            throw new IllegalStateException(
+                    "Invalid transition: " + this.status + " → REFUNDED (expected CAPTURED or SETTLED)");
+        }
         this.status = PaymentStatus.REFUNDED;
+    }
+
+    /** Segna il pagamento come contestato (dispute/chargeback) da CAPTURED o SETTLED. */
+    public void dispute() {
+        if (this.status != PaymentStatus.CAPTURED && this.status != PaymentStatus.SETTLED) {
+            throw new IllegalStateException(
+                    "Invalid transition: " + this.status + " → DISPUTED (expected CAPTURED or SETTLED)");
+        }
+        this.status = PaymentStatus.DISPUTED;
+    }
+
+    /** Unisce chiavi nel metadata JSON (es. processorPaymentIntentId dopo authorize). */
+    public void putMetadata(String key, Object value) {
+        if (key == null || value == null) {
+            return;
+        }
+        Map<String, Object> next = this.metadata == null
+                ? new java.util.HashMap<>()
+                : new java.util.HashMap<>(this.metadata);
+        next.put(key, value);
+        this.metadata = next;
     }
 
     public void fail(PaymentStatus fromStatus) {

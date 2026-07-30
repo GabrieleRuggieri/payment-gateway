@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,9 +42,17 @@ class PaymentServiceSagaTest {
     private IdempotencyService idempotencyService;
     @Mock
     private MerchantAccessGuard merchantAccessGuard;
+    @Mock
+    private com.finance.payment.config.PaymentEventMapper eventMapper;
 
     @InjectMocks
     private PaymentService paymentService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubOutboxEnvelope() {
+        lenient().when(eventMapper.toOutboxEnvelope(any(), any(), any()))
+                .thenReturn(java.util.Map.of("eventType", "PaymentEvent"));
+    }
 
     @Test
     void shouldKeepCapturedStatusOnSettlementFailedUntilRefund() throws Exception {
@@ -73,6 +82,22 @@ class PaymentServiceSagaTest {
         paymentService.handleRefunded(paymentId);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+    }
+
+    @Test
+    void shouldMarkDisputedFromSettled() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+        Payment payment = Payment.initiate("key-3", UUID.randomUUID(), new BigDecimal("50.00"), "EUR", null, null);
+        setPaymentId(payment, paymentId);
+        payment.authorize();
+        payment.capture();
+        payment.settle();
+        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+
+        paymentService.handleDisputed(paymentId, "fraudulent");
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.DISPUTED);
+        verify(outboxRepository).save(any());
     }
 
     private static void setPaymentId(Payment payment, UUID id) throws Exception {

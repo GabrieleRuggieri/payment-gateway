@@ -12,7 +12,8 @@ public enum PaymentEventType {
     CAPTURE_FAILED("CaptureFailed"),
     PAYMENT_SETTLED("PaymentSettled"),
     SETTLEMENT_FAILED("SettlementFailed"),
-    PAYMENT_REFUNDED("PaymentRefunded");
+    PAYMENT_REFUNDED("PaymentRefunded"),
+    PAYMENT_DISPUTED("PaymentDisputed");
 
     private final String wireName;
 

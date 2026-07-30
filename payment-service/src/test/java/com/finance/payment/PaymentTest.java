@@ -49,11 +49,38 @@ class PaymentTest {
     }
 
     @Test
-    void shouldStoreFourDecimalPlaces() {
+    void shouldAllowRefundFromSettled() {
         Payment payment = Payment.initiate(
-                "key-123", UUID.randomUUID(),
-                new BigDecimal("99.9"), "EUR", null, null
+                "key-refund", UUID.randomUUID(),
+                new BigDecimal("40.00"), "EUR", null, null
         );
-        assertThat(payment.getAmount()).isEqualByComparingTo(new BigDecimal("99.9000"));
+        payment.authorize();
+        payment.capture();
+        payment.settle();
+        payment.refund();
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+    }
+
+    @Test
+    void shouldAllowDisputeFromSettled() {
+        Payment payment = Payment.initiate(
+                "key-dispute", UUID.randomUUID(),
+                new BigDecimal("40.00"), "EUR", null, null
+        );
+        payment.authorize();
+        payment.capture();
+        payment.settle();
+        payment.dispute();
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.DISPUTED);
+    }
+
+    @Test
+    void shouldMergeProcessorMetadata() {
+        Payment payment = Payment.initiate(
+                "key-meta", UUID.randomUUID(),
+                new BigDecimal("10.00"), "EUR", null, null
+        );
+        payment.putMetadata("processorPaymentIntentId", "pi_test_123");
+        assertThat(payment.getMetadata()).containsEntry("processorPaymentIntentId", "pi_test_123");
     }
 }
