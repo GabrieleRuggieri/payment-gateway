@@ -101,7 +101,8 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "8083:8083"
+      # Host 8085 — 8083 è già usata da settlement-service
+      - "8085:8083"
     environment:
       BOOTSTRAP_SERVERS: kafka:29092
       GROUP_ID: payment-outbox-connect

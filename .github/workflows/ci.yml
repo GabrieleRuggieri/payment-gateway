@@ -143,7 +143,7 @@ jobs:
       - name: Wait for Debezium outbox connector
         run: |
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:8083/connectors/payments-outbox-connector/status \
+            if curl -sf http://localhost:8085/connectors/payments-outbox-connector/status \
               | grep -q '"state":"RUNNING"'; then
               echo "Debezium connector RUNNING"
               exit 0
@@ -151,8 +151,8 @@ jobs:
             sleep 5
           done
           echo "Connector not RUNNING" >&2
-          curl -s http://localhost:8083/connectors || true
-          curl -s http://localhost:8083/connectors/payments-outbox-connector/status || true
+          curl -s http://localhost:8085/connectors || true
+          curl -s http://localhost:8085/connectors/payments-outbox-connector/status || true
           exit 1
 
       - name: Health check — payment-service

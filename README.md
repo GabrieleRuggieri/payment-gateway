@@ -1068,7 +1068,7 @@ docker compose exec postgres psql -U payments_user -d payments \
   -c "SELECT id, event_type, status, attempts FROM payment_outbox ORDER BY created_at DESC LIMIT 10;"
 
 # Debezium connector status
-curl -s http://localhost:8083/connectors/payments-outbox-connector/status
+curl -s http://localhost:8085/connectors/payments-outbox-connector/status
 
 # Visualizza Kafka UI
 open http://localhost:8090
@@ -1089,7 +1089,7 @@ curl http://localhost:8099/webhooks/payments
 | `notification-service` | 8084 | Webhook firmati + retry/DLQ |
 | `webhook-receiver` | 8099 | Sink demo (POST con token interno) |
 | `payment-ui` | 3000 | React + BFF nginx |
-| `debezium-connect` | 8083 | CDC outbox → Kafka |
+| `debezium-connect` | 8085 | CDC outbox → Kafka (API Connect) |
 | `kafka-ui` | 8090 | Topic browser |
 | `postgres` | 5432 | `wal_level=logical` |
 | `kafka` / `redis` | 9092 / 6379 | Bus + rate limit |
