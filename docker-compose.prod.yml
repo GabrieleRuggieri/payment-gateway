@@ -60,6 +60,13 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-pgw-internal-demo-token}
+      PAYMENT_OUTBOX_RELAY_ENABLED: ${PAYMENT_OUTBOX_RELAY_ENABLED:-false}
+      PAYMENT_OUTBOX_CDC_ACK_ENABLED: ${PAYMENT_OUTBOX_CDC_ACK_ENABLED:-true}
+      PAYMENT_PROCESSOR_PROVIDER: ${PAYMENT_PROCESSOR_PROVIDER:-mock}
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      STRIPE_WEBHOOKS_ENABLED: ${STRIPE_WEBHOOKS_ENABLED:-false}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
 
   authorization-service:
     <<: *app-resources
@@ -148,6 +155,8 @@ services:
       - prometheus_data:/prometheus
     ports:
       - "127.0.0.1:9090:9090"
+    environment:
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-pgw-internal-demo-token}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus

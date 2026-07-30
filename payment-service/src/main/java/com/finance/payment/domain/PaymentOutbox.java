@@ -33,6 +33,10 @@ public class PaymentOutbox {
     @Column(name = "aggregate_id", nullable = false)
     private UUID aggregateId;
 
+    /** Tipo aggregato per Debezium Outbox Event Router (default {@code Payment}). */
+    @Column(name = "aggregate_type", nullable = false)
+    private String aggregateType = "Payment";
+
     @Column(name = "event_type", nullable = false)
     private String eventType;
 
@@ -71,6 +75,7 @@ public class PaymentOutbox {
 
         PaymentOutbox outbox = new PaymentOutbox();
         outbox.aggregateId = paymentId;
+        outbox.aggregateType = "Payment";
         outbox.eventType = eventType;
         outbox.payload = payload;
         outbox.topic = topic;
