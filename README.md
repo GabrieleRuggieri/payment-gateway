@@ -1067,7 +1067,7 @@ curl -s -H "X-Api-Key: pgw-demo-key-32chars-minimum!!" \
 docker compose exec postgres psql -U payments_user -d payments \
   -c "SELECT id, event_type, status, attempts FROM payment_outbox ORDER BY created_at DESC LIMIT 10;"
 
-# Debezium connector status
+# Debezium connector status (solo con --profile debezium)
 curl -s http://localhost:8085/connectors/payments-outbox-connector/status
 
 # Visualizza Kafka UI
@@ -1089,18 +1089,28 @@ curl http://localhost:8099/webhooks/payments
 | `notification-service` | 8084 | Webhook firmati + retry/DLQ |
 | `webhook-receiver` | 8099 | Sink demo (POST con token interno) |
 | `payment-ui` | 3000 | React + BFF nginx |
-| `debezium-connect` | 8085 | CDC outbox → Kafka (API Connect) |
+| `debezium-connect` | 8085 | Opzionale (`--profile debezium`) |
 | `kafka-ui` | 8090 | Topic browser |
 | `postgres` | 5432 | `wal_level=logical` |
 | `kafka` / `redis` | 9092 / 6379 | Bus + rate limit |
 
 ### 10.2 Healthcheck e startup ordering
 
-`payment-service` esegue Flyway all'avvio; gli altri servizi attendono che sia healthy. `debezium-register` parte dopo Connect + payment-service healthy.
+`payment-service` esegue Flyway all'avvio; gli altri servizi attendono che sia healthy. Con `--profile debezium`, `debezium-register` parte dopo Connect + payment-service healthy.
 
-### 10.3 Outbox: Debezium vs polling
+### 10.3 Outbox: relay Java (default) e Debezium (opzionale)
 
-Default Compose: `PAYMENT_OUTBOX_RELAY_ENABLED=false` + Debezium Outbox Event Router su `payment_outbox` → `payment.events`. `OutboxCdcAckService` marca `PUBLISHED`. Per il relay Java: `PAYMENT_OUTBOX_RELAY_ENABLED=true` e `PAYMENT_OUTBOX_CDC_ACK_ENABLED=false`.
+Default Compose: `PAYMENT_OUTBOX_RELAY_ENABLED=true` — il `OutboxRelayService` pubblica su Kafka.
+
+Per CDC Debezium (profile Compose):
+
+```bash
+PAYMENT_OUTBOX_RELAY_ENABLED=false PAYMENT_OUTBOX_CDC_ACK_ENABLED=true \
+  docker compose --profile debezium up -d
+# Connect API: http://localhost:8085
+```
+
+Postgres è già con `wal_level=logical` per supportare il profile.
 
 ### 10.4 Swagger UI
 

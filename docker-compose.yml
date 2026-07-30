@@ -92,8 +92,11 @@ services:
       KAFKA_CLUSTERS_0_NAME: local-kraft
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
-  # Debezium Kafka Connect — CDC sull'outbox (sostituisce il polling Java quando abilitato).
+  # Debezium Kafka Connect — profilo opzionale:
+  #   PAYMENT_OUTBOX_RELAY_ENABLED=false PAYMENT_OUTBOX_CDC_ACK_ENABLED=true \
+  #   docker compose --profile debezium up -d
   debezium-connect:
+    profiles: ["debezium"]
     image: quay.io/debezium/connect:2.7.3.Final
     depends_on:
       kafka:
@@ -124,6 +127,7 @@ services:
       start_period: 40s
 
   debezium-register:
+    profiles: ["debezium"]
     image: alpine:3.20
     depends_on:
       debezium-connect:
@@ -176,8 +180,9 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-pgw-internal-demo-token}
-      PAYMENT_OUTBOX_RELAY_ENABLED: ${PAYMENT_OUTBOX_RELAY_ENABLED:-false}
-      PAYMENT_OUTBOX_CDC_ACK_ENABLED: ${PAYMENT_OUTBOX_CDC_ACK_ENABLED:-true}
+      # Default affidabile: relay Java. Per CDC: profile debezium + RELAY=false + CDC_ACK=true
+      PAYMENT_OUTBOX_RELAY_ENABLED: ${PAYMENT_OUTBOX_RELAY_ENABLED:-true}
+      PAYMENT_OUTBOX_CDC_ACK_ENABLED: ${PAYMENT_OUTBOX_CDC_ACK_ENABLED:-false}
       PAYMENT_PROCESSOR_PROVIDER: ${PAYMENT_PROCESSOR_PROVIDER:-mock}
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_DEFAULT_PAYMENT_METHOD: ${STRIPE_DEFAULT_PAYMENT_METHOD:-pm_card_visa}
