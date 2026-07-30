@@ -1,77 +1,43 @@
 /**
- * Sezione a quattro card che illustrano capacità della piattaforma.
+ * Una sola sezione: il percorso della saga — niente griglia marketing a card.
  */
-import {
-  IntegrationsArt,
-  PaymentFlowArt,
-  SecurityArt,
-  StackArt,
-} from './illustrations/PlatformArts';
 
-const PLATFORM_CARDS = [
+const STEPS = [
   {
-    id: 'flow',
-    eyebrow: 'Payment flow',
-    title: 'Describe it. Settle it.',
-    desc: 'Initiate a payment and watch the saga complete end-to-end.',
-    variant: 'white' as const,
-    Art: PaymentFlowArt,
+    title: 'Authorize',
+    body: 'Funds are held on the processor (Stripe PaymentIntent, manual capture).',
   },
   {
-    id: 'stack',
-    eyebrow: 'Full stack infrastructure',
-    title: 'Build & scale easily',
-    desc: 'PostgreSQL, Kafka, Redis and outbox with zero extra wiring.',
-    variant: 'gray' as const,
-    Art: StackArt,
+    title: 'Capture',
+    body: 'The hold becomes a charge. Failure voids the authorization.',
   },
   {
-    id: 'integrations',
-    eyebrow: 'Integrations',
-    title: 'Connect to services',
-    desc: 'REST API, webhooks and Kafka events for every saga step.',
-    variant: 'peach' as const,
-    Art: IntegrationsArt,
-  },
-  {
-    id: 'security',
-    eyebrow: 'Enterprise control',
-    title: 'Secure your payments',
-    desc: 'Idempotency keys, deduplication and durable outbox patterns.',
-    variant: 'orange' as const,
-    Art: SecurityArt,
+    title: 'Settle',
+    body: 'Ledger confirms settlement — or refunds when the acquirer path fails.',
   },
 ];
 
-/** Striscia piattaforma — quattro card illustrate con diagrammi wireframe. */
 export function PlatformStrip() {
   return (
-    <section className="platform-strip">
-      <div className="platform-strip__header">
-        <span className="platform-strip__eyebrow">Powered by the platform</span>
-        <h2 className="platform-strip__title">Build &amp; scale your apps easily</h2>
-        <p className="platform-strip__desc">
-          Built-in services with zero setup — persistence, messaging and deduplication from day one.
+    <section className="flow" aria-labelledby="flow-title">
+      <div className="flow__inner">
+        <p className="flow__eyebrow">How money moves</p>
+        <h2 id="flow-title" className="flow__title">
+          Three steps. One saga.
+        </h2>
+        <p className="flow__desc">
+          Choreographed over Kafka with an outbox — each service reacts, compensates, and never double-charges.
         </p>
-      </div>
 
-      <div className="platform-strip__grid">
-        {PLATFORM_CARDS.map(({ id, eyebrow, title, desc, variant, Art }) => (
-          <article key={id} className={`platform-card platform-card--${variant}`}>
-            <span className={`platform-card__eyebrow${variant === 'orange' ? ' platform-card__eyebrow--light' : ''}`}>
-              {eyebrow}
-            </span>
-            <h3 className={`platform-card__title${variant === 'orange' ? ' platform-card__title--light' : ''}`}>
-              {title}
-            </h3>
-            <div className={`platform-card__art${variant === 'orange' ? ' platform-card__art--light' : ''}`}>
-              <Art />
-            </div>
-            <p className={`platform-card__desc${variant === 'orange' ? ' platform-card__desc--light' : ''}`}>
-              {desc}
-            </p>
-          </article>
-        ))}
+        <ol className="flow__steps">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="flow__step">
+              <span className="flow__num mono">{String(i + 1).padStart(2, '0')}</span>
+              <h3 className="flow__step-title">{step.title}</h3>
+              <p className="flow__step-body">{step.body}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

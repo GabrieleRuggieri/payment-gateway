@@ -1,17 +1,19 @@
 /**
  * Componente radice: gestisce form pagamento, polling saga e integrazione test collection.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { createPayment, getPayment, newIdempotencyKey, pollUntilTerminal } from './api';
 import { Hero } from './components/Hero';
 import { Layout } from './components/Layout';
 import { PaymentForm } from './components/PaymentForm';
 import { PaymentResult } from './components/PaymentResult';
 import { SagaTimeline } from './components/SagaTimeline';
-import { TestCollection } from './components/TestCollection';
 import { PlatformStrip } from './components/PlatformStrip';
 import { PaymentResponse, TERMINAL_STATUSES } from './types';
-import './index.css';
+
+const TestCollection = lazy(() =>
+  import('./components/TestCollection').then((m) => ({ default: m.TestCollection })),
+);
 
 /** Pagina principale con composer, bento grid e collection API. */
 export default function App() {
@@ -25,24 +27,56 @@ export default function App() {
   const [response, setResponse] = useState<PaymentResponse | null>(null);
   const [replayed, setReplayed] = useState(false);
 
+  const pollAbortRef = useRef<AbortController | null>(null);
+
+  const stopPolling = useCallback(() => {
+    pollAbortRef.current?.abort();
+    pollAbortRef.current = null;
+    setPolling(false);
+  }, []);
+
   const pollPaymentStatus = useCallback(async (paymentId: string) => {
+    pollAbortRef.current?.abort();
+    const controller = new AbortController();
+    pollAbortRef.current = controller;
+
     setPolling(true);
+    setError(null);
     try {
-      const final = await pollUntilTerminal(paymentId);
-      if (final) setResponse(final);
+      const final = await pollUntilTerminal(paymentId, {
+        signal: controller.signal,
+        onUpdate: (payment) => {
+          if (!controller.signal.aborted) {
+            setResponse(payment);
+          }
+        },
+      });
+      if (!controller.signal.aborted && final) {
+        setResponse(final);
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Polling failed');
+      if (!controller.signal.aborted) {
+        setError(e instanceof Error ? e.message : 'Polling failed');
+      }
     } finally {
-      setPolling(false);
+      if (pollAbortRef.current === controller) {
+        pollAbortRef.current = null;
+        setPolling(false);
+      }
     }
   }, []);
 
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  // Avvia il poll solo quando cambia l'id del pagamento (non a ogni update di status).
   useEffect(() => {
     if (!response?.id || TERMINAL_STATUSES.includes(response.status)) return;
     void pollPaymentStatus(response.id);
-  }, [response?.id, pollPaymentStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambio id
+  }, [response?.id]);
 
   async function submitPayment(reuseKey: boolean) {
+    stopPolling();
     setLoading(true);
     setError(null);
     setReplayed(false);
@@ -73,14 +107,16 @@ export default function App() {
   }
 
   const loadPaymentById = useCallback(async (paymentId: string) => {
+    stopPolling();
     const result = await getPayment(paymentId);
     if (result.ok && result.body) {
-      setResponse(result.body as PaymentResponse);
-      if (!TERMINAL_STATUSES.includes((result.body as PaymentResponse).status)) {
+      const payment = result.body as PaymentResponse;
+      setResponse(payment);
+      if (!TERMINAL_STATUSES.includes(payment.status)) {
         void pollPaymentStatus(paymentId);
       }
     }
-  }, [pollPaymentStatus]);
+  }, [stopPolling, pollPaymentStatus]);
 
   return (
     <Layout>
@@ -97,25 +133,36 @@ export default function App() {
         }}
       />
 
-      <div className="bento-grid">
-        <PaymentForm
-          merchantId={merchantId}
-          idempotencyKey={idempotencyKey}
-          loading={loading}
-          error={error}
-          onMerchantIdChange={setMerchantId}
-          onIdempotencyKeyChange={setIdempotencyKey}
-          onRetrySameKey={() => void submitPayment(true)}
-          onNewKey={() => setIdempotencyKey(newIdempotencyKey())}
-        />
+      <div className="workspace" id="workspace">
+        <div className="workspace__grid">
+          <PaymentForm
+            merchantId={merchantId}
+            idempotencyKey={idempotencyKey}
+            loading={loading}
+            error={error}
+            onMerchantIdChange={setMerchantId}
+            onIdempotencyKeyChange={setIdempotencyKey}
+            onRetrySameKey={() => void submitPayment(true)}
+            onNewKey={() => setIdempotencyKey(newIdempotencyKey())}
+          />
 
-        <SagaTimeline status={response?.status ?? null} polling={polling} />
+          <SagaTimeline status={response?.status ?? null} polling={polling} />
 
-        <PaymentResult payment={response} replayed={replayed} />
+          <PaymentResult payment={response} replayed={replayed} />
+        </div>
       </div>
 
       <PlatformStrip />
-      <TestCollection merchantId={merchantId} onPaymentResult={loadPaymentById} />
+
+      <Suspense
+        fallback={
+          <section className="test-collection" id="collection" aria-busy="true">
+            <p className="test-collection__loading">Loading API collection…</p>
+          </section>
+        }
+      >
+        <TestCollection merchantId={merchantId} onPaymentResult={loadPaymentById} />
+      </Suspense>
     </Layout>
   );
 }

@@ -1,9 +1,10 @@
 /**
- * Entry point dell'applicazione React.
- * Monta l'albero componenti in StrictMode sul nodo #root.
+ * Entry point — font display + body, StrictMode.
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@fontsource-variable/space-grotesk/wght.css';
+import '@fontsource-variable/outfit/wght.css';
 import App from './App';
 import './index.css';
 

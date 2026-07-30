@@ -1,9 +1,7 @@
 /**
- * Tile bento per configurazione merchant e chiave di idempotenza.
+ * Pannello workspace: merchant + idempotency (interazione, non marketing).
  */
-import { ConfigureArt } from './illustrations/ConfigureArt';
 
-/** Campi e callback del form di configurazione pagamento. */
 interface PaymentFormProps {
   merchantId: string;
   idempotencyKey: string;
@@ -15,7 +13,6 @@ interface PaymentFormProps {
   onNewKey: () => void;
 }
 
-/** Tile bento peach — illustrazione wireframe e campi merchant/idempotency. */
 export function PaymentForm({
   merchantId,
   idempotencyKey,
@@ -27,26 +24,27 @@ export function PaymentForm({
   onNewKey,
 }: PaymentFormProps) {
   return (
-    <section className="bento bento--peach">
-      <span className="bento__eyebrow">Design Freely</span>
-      <h2 className="bento__title">Configure freely</h2>
+    <section className="panel" aria-labelledby="configure-title">
+      <header className="panel__head">
+        <p className="panel__eyebrow">Configure</p>
+        <h2 id="configure-title" className="panel__title">
+          Merchant &amp; key
+        </h2>
+      </header>
 
-      <div className="bento-art bento-art--dark">
-        <ConfigureArt />
-      </div>
-
-      <div className="bento-form">
-        <div className="bento-field">
+      <div className="panel__body">
+        <div className="field">
           <label htmlFor="merchant-id">Merchant ID</label>
           <input
             id="merchant-id"
+            className="mono"
             value={merchantId}
             onChange={(e) => onMerchantIdChange(e.target.value)}
             placeholder="UUID"
             aria-label="Merchant ID"
           />
         </div>
-        <div className="bento-field">
+        <div className="field">
           <label htmlFor="idempotency-key">Idempotency Key</label>
           <input
             id="idempotency-key"
@@ -57,31 +55,21 @@ export function PaymentForm({
           />
         </div>
 
-        <div className="bento-form__actions">
-          <button
-            type="button"
-            className="btn-outline"
-            disabled={loading}
-            onClick={onRetrySameKey}
-            aria-busy={loading}
-          >
+        <div className="panel__actions">
+          <button type="button" className="btn" disabled={loading} onClick={onRetrySameKey} aria-busy={loading}>
             {loading ? 'Processing…' : 'Retry same key'}
           </button>
-          <button type="button" className="btn-outline" disabled={loading} onClick={onNewKey}>
+          <button type="button" className="btn btn--ghost" disabled={loading} onClick={onNewKey}>
             New key
           </button>
         </div>
 
         {error && (
-          <p className="bento-error" role="alert" aria-live="assertive">
+          <p className="panel__error" role="alert" aria-live="assertive">
             {error}
           </p>
         )}
       </div>
-
-      <p className="bento__desc bento__desc--footer">
-        Set merchant and idempotency key before submitting. Each key guarantees exactly-once initiation.
-      </p>
     </section>
   );
 }

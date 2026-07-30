@@ -24,6 +24,7 @@ export interface CreatePaymentParams {
   description?: string;
   idempotencyKey?: string;
   skipIdempotencyHeader?: boolean;
+  signal?: AbortSignal;
 }
 
 /** Crea un pagamento e restituisce l'esito HTTP senza lanciare eccezioni di rete. */
@@ -40,6 +41,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<ApiCal
     const res = await fetch(`${API_BASE}/api/v1/payments`, {
       method: 'POST',
       headers,
+      signal: params.signal,
       body: JSON.stringify({
         merchantId: params.merchantId,
         amount: params.amount,
@@ -51,6 +53,9 @@ export async function createPayment(params: CreatePaymentParams): Promise<ApiCal
     const body = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, headers: res.headers, body };
   } catch (e) {
+    if (params.signal?.aborted) {
+      return { ok: false, status: 0, headers: new Headers(), body: null, error: 'aborted' };
+    }
     return {
       ok: false,
       status: 0,
@@ -62,12 +67,18 @@ export async function createPayment(params: CreatePaymentParams): Promise<ApiCal
 }
 
 /** Recupera un pagamento per ID. */
-export async function getPayment(paymentId: string): Promise<ApiCallResult> {
+export async function getPayment(
+  paymentId: string,
+  signal?: AbortSignal,
+): Promise<ApiCallResult> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/payments/${paymentId}`);
+    const res = await fetch(`${API_BASE}/api/v1/payments/${paymentId}`, { signal });
     const body = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, headers: res.headers, body };
   } catch (e) {
+    if (signal?.aborted) {
+      return { ok: false, status: 0, headers: new Headers(), body: null, error: 'aborted' };
+    }
     return {
       ok: false,
       status: 0,
@@ -78,22 +89,62 @@ export async function getPayment(paymentId: string): Promise<ApiCallResult> {
   }
 }
 
-/** Effettua polling su GET fino a uno stato terminale della saga o timeout. */
+/** Opzioni di polling fino a stato terminale. */
+export interface PollOptions {
+  maxAttempts?: number;
+  intervalMs?: number;
+  signal?: AbortSignal;
+  onUpdate?: (payment: PaymentResponse) => void;
+}
+
+/** Effettua polling su GET fino a uno stato terminale della saga, timeout o abort. */
 export async function pollUntilTerminal(
   paymentId: string,
-  maxAttempts = 30,
+  maxAttemptsOrOptions: number | PollOptions = 30,
   intervalMs = 1500,
 ): Promise<PaymentResponse | null> {
+  const options: PollOptions =
+    typeof maxAttemptsOrOptions === 'number'
+      ? { maxAttempts: maxAttemptsOrOptions, intervalMs }
+      : maxAttemptsOrOptions;
+
+  const maxAttempts = options.maxAttempts ?? 30;
+  const delay = options.intervalMs ?? 1500;
+  const { signal, onUpdate } = options;
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const result = await getPayment(paymentId);
+    if (signal?.aborted) return null;
+
+    const result = await getPayment(paymentId, signal);
+    if (signal?.aborted || result.error === 'aborted') return null;
     if (!result.ok || !result.body) return null;
 
     const payment = result.body as PaymentResponse;
+    onUpdate?.(payment);
     if (TERMINAL_STATUSES.includes(payment.status)) return payment;
 
-    await new Promise((r) => setTimeout(r, intervalMs));
+    await sleep(delay, signal);
+    if (signal?.aborted) return null;
   }
   return null;
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
 }
 
 /** Genera una nuova chiave di idempotenza (UUID v4). */

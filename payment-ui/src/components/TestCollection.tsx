@@ -101,7 +101,7 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
     <section className="test-collection" id="collection">
       <div className="test-collection__header">
         <div>
-          <span className="test-collection__eyebrow">Collection</span>
+          <p className="test-collection__eyebrow">Collection</p>
           <h2 className="test-collection__title">Payment Gateway API</h2>
           <p className="test-collection__desc">
             {TOTAL_TESTS} requests in {TEST_SECTIONS.length} folders — run individually, by folder, or all at once.
@@ -114,7 +114,7 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
         </div>
         <button
           type="button"
-          className="test-collection__run-all"
+          className="btn btn--accent"
           onClick={() => void runAll()}
           disabled={runningAll}
         >
@@ -124,19 +124,15 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
 
       <div className="test-sections">
         {TEST_SECTIONS.map((section) => (
-          <article key={section.id} className={`bento bento--${section.variant} test-section`}>
+          <article key={section.id} className={`panel test-section test-section--${section.variant}`}>
             <div className="test-section__header">
               <div>
-                <span className="bento__eyebrow">{section.eyebrow}</span>
-                <h3 className="bento__title">{section.title}</h3>
-                <p className="bento__desc">{section.description}</p>
+                <p className="panel__eyebrow">{section.eyebrow}</p>
+                <h3 className="panel__title">{section.title}</h3>
+                <p className="panel__desc">{section.description}</p>
                 <span className="test-section__count">{section.tests.length} requests</span>
               </div>
-              <button
-                type="button"
-                className="btn-outline"
-                onClick={() => void runSection(section.id)}
-              >
+              <button type="button" className="btn btn--ghost" onClick={() => void runSection(section.id)}>
                 Run folder
               </button>
             </div>
@@ -154,12 +150,12 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
                           <span className={`test-method test-method--${test.method.toLowerCase()}`}>
                             {test.method}
                           </span>
-                          <code className="test-item__path">{test.path}</code>
+                          <code className="test-item__path mono">{test.path}</code>
                         </div>
                         <strong className="test-item__name">{test.name}</strong>
                         <p className="test-item__desc">{test.description}</p>
                         <p className="test-item__expected">
-                          <span className="test-item__expected-label">Tests</span> {test.expected}
+                          <span className="test-item__expected-label">Expect</span> {test.expected}
                         </p>
                       </div>
                       <div className="test-item__actions">
@@ -170,7 +166,7 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
                         />
                         <button
                           type="button"
-                          className="btn-outline btn-outline--compact"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => void runTest(test.id)}
                           disabled={state.status === 'running'}
                         >
@@ -182,7 +178,7 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
                             className="test-item__toggle"
                             onClick={() => setExpanded((prev) => ({ ...prev, [test.id]: !isOpen }))}
                           >
-                            {isOpen ? 'Hide body' : 'Body'}
+                            {isOpen ? 'Hide' : 'Body'}
                           </button>
                         )}
                       </div>
@@ -205,7 +201,7 @@ export function TestCollection({ merchantId, onPaymentResult }: TestCollectionPr
                     {isOpen && state.detail && (
                       <div className="test-item__response">
                         <span className="test-item__response-label">Response</span>
-                        <pre className="test-item__detail">{state.detail}</pre>
+                        <pre className="test-item__detail mono">{state.detail}</pre>
                       </div>
                     )}
                   </li>

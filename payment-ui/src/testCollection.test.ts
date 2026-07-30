@@ -12,9 +12,14 @@ describe('API test collection', () => {
 
   it('documents async saga expectations for failure scenarios', () => {
     const failureTests = TEST_SECTIONS.find((section) => section.id === 'failures')!.tests;
-    expect(failureTests.map((test) => test.id)).toEqual(['fail-settlement-limit', 'fail-auth-limit']);
+    expect(failureTests.map((test) => test.id)).toEqual([
+      'fail-settlement-limit',
+      'fail-capture-limit',
+      'fail-auth-limit',
+    ]);
     expect(failureTests[0].expected).toContain('REFUNDED');
     expect(failureTests[1].expected).toContain('FAILED');
+    expect(failureTests[2].expected).toContain('FAILED');
   });
 
   it('documents BFF proxy behaviour in the validation folder', () => {

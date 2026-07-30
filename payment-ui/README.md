@@ -20,7 +20,8 @@ Il browser non contiene mai la chiave API del merchant: le chiamate passano da u
 | TypeScript | Tipizzazione |
 | Vite 6 | Dev server, build e proxy di sviluppo |
 | Vitest | Test unitari |
-| nginx (produzione) | Hosting statico e proxy BFF verso `payment-service` |
+| Playwright | Smoke E2E |
+| nginx (produzione) | Hosting statico, gzip, cache asset e proxy BFF |
 
 ## Sviluppo locale
 
@@ -39,6 +40,8 @@ Altri script:
 - `npm run build` — type-check e bundle di produzione in `dist/`
 - `npm run preview` — anteprima del build locale
 - `npm run test` — esecuzione test Vitest
+- `npm run test:e2e` — smoke Playwright (avvia preview)
+- `npm run test:e2e:docker` — smoke contro UI Docker su `:3000`
 
 ## Docker
 
